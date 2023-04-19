@@ -22,6 +22,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+#include <stdio.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -88,6 +90,8 @@ static void MX_CAN_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
+
+int _write(int fd, char* ptr, int len);
 
 void TM_ILI9341_SendData(uint8_t data);
 void TM_ILI9341_SendCommand(uint8_t data);
@@ -312,30 +316,28 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
     HAL_GPIO_WritePin (LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-    for (int i = 0; i < 4000000; i++)
-    {
-    }
-    for (int x = 0; x < 240; x++)
-    {
-      for (int y = 0; y < 320; y++)
-      {
-        TM_ILI9341_DrawPixel(x, y, 0x001F);
-      }
-    }
+    //for (int i = 0; i < 4000000; i++)
+    //{
+    //}
+    //for (int x = 0; x < 240; x++)
+    //{
+    //  for (int y = 0; y < 320; y++)
+    //  {
+    //    TM_ILI9341_DrawPixel(x, y, 0x001F);
+    //  }
+    //}
+    HAL_Delay(1000);
     HAL_GPIO_WritePin (LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-    for (int i = 0; i < 4000000; i++)
-    {
-    }
-    for (int x = 0; x < 240; x++)
-    {
-      for (int y = 0; y < 320; y++)
-      {
-        TM_ILI9341_DrawPixel(x, y, 0xF800);
-      }
-    }
+    //for (int x = 0; x < 240; x++)
+    //{
+    //  for (int y = 0; y < 320; y++)
+    //  {
+    //    TM_ILI9341_DrawPixel(x, y, 0xF800);
+    //  }
+    //}
+    HAL_Delay(1000);
 
-    uint8_t Coucou[8] = "Coucou\n";
-    HAL_UART_Transmit(&huart1, Coucou, 7, HAL_MAX_DELAY);
+    printf("Hello world!\n");
   }
   /* USER CODE END 3 */
 }
@@ -525,6 +527,11 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+int _write(int fd, char* ptr, int len) {
+    HAL_UART_Transmit(&huart1, (uint8_t *) ptr, len, HAL_MAX_DELAY);
+    return len;
+}
+
 void TM_ILI9341_SendCommand(uint8_t data) {
   uint8_t Data_Received;
   HAL_GPIO_WritePin (LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_RESET);
@@ -584,10 +591,11 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
+
+  printf ("An error occured\n");
+
   while (1)
   {
-    uint8_t Error_Message[18] = "An error occured\n";
-    HAL_UART_Transmit(&huart1, Error_Message, 17, HAL_MAX_DELAY);
   }
   /* USER CODE END Error_Handler_Debug */
 }
@@ -603,6 +611,7 @@ void Error_Handler(void)
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
+  printf("Wrong parameters value: file %s on line %d\n", file, line);
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
