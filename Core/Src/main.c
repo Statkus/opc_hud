@@ -305,6 +305,53 @@ int main(void)
   //  }
   //}
 
+  // CAN configuration
+
+  CAN_FilterTypeDef FilterConfig;
+  FilterConfig.FilterIdHigh         = 0xFFFF;
+  FilterConfig.FilterIdLow          = 0xFFFF;
+  FilterConfig.FilterMaskIdHigh     = 0xFFFF;
+  FilterConfig.FilterMaskIdLow      = 0xFFFF;
+  FilterConfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+  FilterConfig.FilterBank           = 0;
+  FilterConfig.FilterMode           = CAN_FILTERMODE_IDMASK;
+  FilterConfig.FilterScale          = CAN_FILTERSCALE_32BIT;
+  FilterConfig.FilterActivation     = CAN_FILTER_ENABLE;
+
+  if (HAL_CAN_ConfigFilter(&hcan, &FilterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  if (HAL_CAN_Start(&hcan) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  CAN_RxHeaderTypeDef CAN_Header;
+  CAN_TxHeaderTypeDef CAN_Header_TX;
+  uint8_t CAN_Payload[8];
+  uint8_t CAN_Payload_TX[8];
+
+  uint32_t Mailbox;
+
+  HAL_CAN_StateTypeDef CAN_State;
+
+  CAN_Header_TX.StdId = 0x7DF;
+  CAN_Header_TX.IDE = 0;
+  CAN_Header_TX.RTR = 0;
+  CAN_Header_TX.DLC = 8;
+  CAN_Payload_TX[0] = 0x02;
+  CAN_Payload_TX[1] = 0x01;
+  CAN_Payload_TX[2] = 0x0D;
+  CAN_Payload_TX[3] = 0x55;
+  CAN_Payload_TX[4] = 0x55;
+  CAN_Payload_TX[5] = 0x55;
+  CAN_Payload_TX[6] = 0x55;
+  CAN_Payload_TX[7] = 0x55;
+
+  printf("Start main loop\n");
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -314,6 +361,20 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+    while (HAL_CAN_GetRxFifoFillLevel(&hcan, CAN_RX_FIFO0) > 0)
+    {
+      HAL_CAN_GetRxMessage(&hcan, CAN_RX_FIFO0, &CAN_Header, CAN_Payload);
+      printf("StdId: %ld, ExtId: %ld, IDE (0 std, 4 ext): %ld, RTR: %ld, DLC: %ld\n", CAN_Header.StdId, CAN_Header.ExtId, CAN_Header.IDE, CAN_Header.RTR, CAN_Header.DLC);
+      printf("Payload: %d, %d, %d, %d, %d, %d, %d, %d\n", CAN_Payload[0], CAN_Payload[1], CAN_Payload[2], CAN_Payload[3], CAN_Payload[4], CAN_Payload[5], CAN_Payload[6], CAN_Payload[7]);
+    }
+
+    HAL_CAN_AddTxMessage(&hcan, &CAN_Header_TX, CAN_Payload_TX, &Mailbox);
+
+    CAN_State = HAL_CAN_GetState(&hcan);
+
+    printf("State: %d, error: %ld\n", CAN_State, HAL_CAN_GetError(&hcan));
+
 
     HAL_GPIO_WritePin (LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
     //for (int i = 0; i < 4000000; i++)
@@ -335,9 +396,7 @@ int main(void)
     //    TM_ILI9341_DrawPixel(x, y, 0xF800);
     //  }
     //}
-    HAL_Delay(1000);
-
-    printf("Hello world!\n");
+    HAL_Delay(50);
   }
   /* USER CODE END 3 */
 }
@@ -592,7 +651,7 @@ void Error_Handler(void)
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
 
-  printf ("An error occured\n");
+  printf("An error occured\n");
 
   while (1)
   {
