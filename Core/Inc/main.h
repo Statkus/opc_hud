@@ -73,6 +73,10 @@ void Error_Handler(void);
 #define LCD_MOSI_GPIO_Port GPIOA
 #define CONSOLE_TX_Pin GPIO_PIN_9
 #define CONSOLE_TX_GPIO_Port GPIOA
+#define CAN_RX_Pin GPIO_PIN_8
+#define CAN_RX_GPIO_Port GPIOB
+#define CAN_TX_Pin GPIO_PIN_9
+#define CAN_TX_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
