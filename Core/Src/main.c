@@ -308,10 +308,10 @@ int main(void)
   // CAN configuration
 
   CAN_FilterTypeDef FilterConfig;
-  FilterConfig.FilterIdHigh         = 0xFFFF;
-  FilterConfig.FilterIdLow          = 0xFFFF;
-  FilterConfig.FilterMaskIdHigh     = 0xFFFF;
-  FilterConfig.FilterMaskIdLow      = 0xFFFF;
+  FilterConfig.FilterIdHigh         = 0x0000;
+  FilterConfig.FilterIdLow          = 0x0000;
+  FilterConfig.FilterMaskIdHigh     = 0x0000;
+  FilterConfig.FilterMaskIdLow      = 0x0000;
   FilterConfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
   FilterConfig.FilterBank           = 0;
   FilterConfig.FilterMode           = CAN_FILTERMODE_IDMASK;
@@ -343,12 +343,12 @@ int main(void)
   CAN_Header_TX.DLC = 8;
   CAN_Payload_TX[0] = 0x02;
   CAN_Payload_TX[1] = 0x01;
-  CAN_Payload_TX[2] = 0x0D;
-  CAN_Payload_TX[3] = 0x55;
-  CAN_Payload_TX[4] = 0x55;
-  CAN_Payload_TX[5] = 0x55;
-  CAN_Payload_TX[6] = 0x55;
-  CAN_Payload_TX[7] = 0x55;
+  CAN_Payload_TX[2] = 0x1C;
+  CAN_Payload_TX[3] = 0xCC;
+  CAN_Payload_TX[4] = 0xCC;
+  CAN_Payload_TX[5] = 0xCC;
+  CAN_Payload_TX[6] = 0xCC;
+  CAN_Payload_TX[7] = 0xCC;
 
   printf("Start main loop\n");
 
