@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+#include <stdbool.h>
 #include <stdio.h>
 
 /* USER CODE END Includes */
@@ -65,6 +66,11 @@
 #define ILI9341_INTERFACE			0xF6
 #define ILI9341_PRC					0xF7
 
+// CAN define
+#define CAN_ECU_REQUEST_ID    0x7E0
+#define CAN_ECU_REPLY_ID      0x7E8
+#define CAN_ECU_DATA_REPLY_ID 0x5E8
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -80,6 +86,13 @@ SPI_HandleTypeDef hspi1;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
+
+bool ECU_Connected = false;
+bool ECU_List_Set  = false;
+
+uint8_t Vehicle_Speed = 0;
+int16_t Water_Temp    = 0;
+uint8_t MAP           = 0;
 
 /* USER CODE END PV */
 
@@ -98,6 +111,9 @@ void TM_ILI9341_SendCommand(uint8_t data);
 void TM_ILI9341_Delay(volatile unsigned int delay);
 void TM_ILI9341_DrawPixel(uint16_t x, uint16_t y, uint32_t color);
 void TM_ILI9341_SetCursorPosition(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
+
+
+void CAN_RX_Callback(CAN_HandleTypeDef *hcan);
 
 /* USER CODE END PFP */
 
@@ -308,17 +324,34 @@ int main(void)
   // CAN configuration
 
   CAN_FilterTypeDef FilterConfig;
-  FilterConfig.FilterIdHigh         = 0x0000;
+  FilterConfig.FilterIdHigh         = CAN_ECU_REPLY_ID << 5;
   FilterConfig.FilterIdLow          = 0x0000;
-  FilterConfig.FilterMaskIdHigh     = 0x0000;
+  FilterConfig.FilterMaskIdHigh     = 0xFFE0;
   FilterConfig.FilterMaskIdLow      = 0x0000;
   FilterConfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
   FilterConfig.FilterBank           = 0;
   FilterConfig.FilterMode           = CAN_FILTERMODE_IDMASK;
   FilterConfig.FilterScale          = CAN_FILTERSCALE_32BIT;
   FilterConfig.FilterActivation     = CAN_FILTER_ENABLE;
-
   if (HAL_CAN_ConfigFilter(&hcan, &FilterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  FilterConfig.FilterIdHigh         = CAN_ECU_DATA_REPLY_ID << 5;
+  FilterConfig.FilterBank           = 1;
+  if (HAL_CAN_ConfigFilter(&hcan, &FilterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  HAL_CAN_CallbackIDTypeDef Callback_ID = HAL_CAN_RX_FIFO0_MSG_PENDING_CB_ID;
+  if (HAL_CAN_RegisterCallback(&hcan, Callback_ID, CAN_RX_Callback) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  if (HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK)
   {
     Error_Handler();
   }
@@ -328,27 +361,14 @@ int main(void)
     Error_Handler();
   }
 
-  CAN_RxHeaderTypeDef CAN_Header;
   CAN_TxHeaderTypeDef CAN_Header_TX;
-  uint8_t CAN_Payload[8];
-  uint8_t CAN_Payload_TX[8];
-
-  uint32_t Mailbox;
-
-  HAL_CAN_StateTypeDef CAN_State;
-
-  CAN_Header_TX.StdId = 0x7DF;
+  CAN_Header_TX.StdId = CAN_ECU_REQUEST_ID;
   CAN_Header_TX.IDE = 0;
   CAN_Header_TX.RTR = 0;
   CAN_Header_TX.DLC = 8;
-  CAN_Payload_TX[0] = 0x02;
-  CAN_Payload_TX[1] = 0x01;
-  CAN_Payload_TX[2] = 0x1C;
-  CAN_Payload_TX[3] = 0xCC;
-  CAN_Payload_TX[4] = 0xCC;
-  CAN_Payload_TX[5] = 0xCC;
-  CAN_Payload_TX[6] = 0xCC;
-  CAN_Payload_TX[7] = 0xCC;
+
+  uint8_t CAN_Payload_TX[8];
+  uint32_t Mailbox;
 
   printf("Start main loop\n");
 
@@ -362,19 +382,53 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-    while (HAL_CAN_GetRxFifoFillLevel(&hcan, CAN_RX_FIFO0) > 0)
+    if (!ECU_Connected)
     {
-      HAL_CAN_GetRxMessage(&hcan, CAN_RX_FIFO0, &CAN_Header, CAN_Payload);
-      printf("StdId: %ld, ExtId: %ld, IDE (0 std, 4 ext): %ld, RTR: %ld, DLC: %ld\n", CAN_Header.StdId, CAN_Header.ExtId, CAN_Header.IDE, CAN_Header.RTR, CAN_Header.DLC);
-      printf("Payload: %d, %d, %d, %d, %d, %d, %d, %d\n", CAN_Payload[0], CAN_Payload[1], CAN_Payload[2], CAN_Payload[3], CAN_Payload[4], CAN_Payload[5], CAN_Payload[6], CAN_Payload[7]);
+      printf("Try to connect to ECU\n");
+
+      CAN_Payload_TX[0] = 0x01;
+      CAN_Payload_TX[1] = 0x20;
+      CAN_Payload_TX[2] = 0x00;
+      CAN_Payload_TX[3] = 0x00;
+      CAN_Payload_TX[4] = 0x00;
+      CAN_Payload_TX[5] = 0x00;
+      CAN_Payload_TX[6] = 0x00;
+      CAN_Payload_TX[7] = 0x00;
+
+      HAL_CAN_AddTxMessage(&hcan, &CAN_Header_TX, CAN_Payload_TX, &Mailbox);
+    }
+    else if (!ECU_List_Set)
+    {
+      printf("Configure ECU list\n");
+
+      CAN_Payload_TX[0] = 0x05;
+      CAN_Payload_TX[1] = 0xAA;
+      CAN_Payload_TX[2] = 0x04;
+      CAN_Payload_TX[3] = 0x10;
+      CAN_Payload_TX[4] = 0x11;
+      CAN_Payload_TX[5] = 0x12;
+      CAN_Payload_TX[6] = 0x00;
+      CAN_Payload_TX[7] = 0x00;
+
+      HAL_CAN_AddTxMessage(&hcan, &CAN_Header_TX, CAN_Payload_TX, &Mailbox);
+
+      ECU_List_Set = true;
+    }
+    else
+    {
+      CAN_Payload_TX[0] = 0x01;
+      CAN_Payload_TX[1] = 0x3E;
+      CAN_Payload_TX[2] = 0x00;
+      CAN_Payload_TX[3] = 0x00;
+      CAN_Payload_TX[4] = 0x00;
+      CAN_Payload_TX[5] = 0x00;
+      CAN_Payload_TX[6] = 0x00;
+      CAN_Payload_TX[7] = 0x00;
+
+      HAL_CAN_AddTxMessage(&hcan, &CAN_Header_TX, CAN_Payload_TX, &Mailbox);
     }
 
-    HAL_CAN_AddTxMessage(&hcan, &CAN_Header_TX, CAN_Payload_TX, &Mailbox);
-
-    CAN_State = HAL_CAN_GetState(&hcan);
-
-    printf("State: %d, error: %ld\n", CAN_State, HAL_CAN_GetError(&hcan));
-
+    printf("State: %d, error: %ld, Vehicle_Speed: %d, Water_Temp: %d, MAP: %d\n", HAL_CAN_GetState(&hcan), HAL_CAN_GetError(&hcan), Vehicle_Speed, Water_Temp, MAP);
 
     HAL_GPIO_WritePin (LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
     //for (int i = 0; i < 4000000; i++)
@@ -637,6 +691,38 @@ void TM_ILI9341_SetCursorPosition(uint16_t x1, uint16_t y1, uint16_t x2, uint16_
 	TM_ILI9341_SendData(y1 & 0xFF);
 	TM_ILI9341_SendData(y2 >> 8);
 	TM_ILI9341_SendData(y2 & 0xFF);
+}
+
+void CAN_RX_Callback(CAN_HandleTypeDef *hcan)
+{
+  CAN_RxHeaderTypeDef CAN_Header;
+  uint8_t CAN_Payload[8];
+
+  HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &CAN_Header, CAN_Payload);
+
+  //printf("StdId: %ld, DLC: %ld, Payload: %d, %d, %d, %d, %d, %d, %d, %d\n", CAN_Header.StdId, CAN_Header.DLC, CAN_Payload[0], CAN_Payload[1], CAN_Payload[2], CAN_Payload[3], CAN_Payload[4], CAN_Payload[5], CAN_Payload[6], CAN_Payload[7]);
+
+  if (CAN_Header.StdId == CAN_ECU_REPLY_ID)
+  {
+    ECU_Connected = true;
+  }
+  else if (CAN_Header.StdId == CAN_ECU_DATA_REPLY_ID)
+  {
+    switch (CAN_Payload[0])
+    {
+      case 0x10:
+        Vehicle_Speed = CAN_Payload[7];
+        break;
+
+      case 0x11:
+        Water_Temp = (int16_t)(CAN_Payload[2]) - 40;
+        break;
+
+      case 0x12:
+        MAP = CAN_Payload[7];
+        break;
+    }
+  }
 }
 
 /* USER CODE END 4 */
