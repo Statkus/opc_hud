@@ -326,7 +326,7 @@ int main(void)
   CAN_FilterTypeDef FilterConfig;
   FilterConfig.FilterIdHigh         = CAN_ECU_REPLY_ID << 5;
   FilterConfig.FilterIdLow          = 0x0000;
-  FilterConfig.FilterMaskIdHigh     = 0xFFE0;
+  FilterConfig.FilterMaskIdHigh     = 0x0000;
   FilterConfig.FilterMaskIdLow      = 0x0000;
   FilterConfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
   FilterConfig.FilterBank           = 0;
@@ -382,53 +382,53 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-    if (!ECU_Connected)
-    {
-      printf("Try to connect to ECU\n");
+    //if (!ECU_Connected)
+    //{
+    //  printf("Try to connect to ECU\n");
 
-      CAN_Payload_TX[0] = 0x01;
-      CAN_Payload_TX[1] = 0x20;
-      CAN_Payload_TX[2] = 0x00;
-      CAN_Payload_TX[3] = 0x00;
-      CAN_Payload_TX[4] = 0x00;
-      CAN_Payload_TX[5] = 0x00;
-      CAN_Payload_TX[6] = 0x00;
-      CAN_Payload_TX[7] = 0x00;
+    //  CAN_Payload_TX[0] = 0x01;
+    //  CAN_Payload_TX[1] = 0x20;
+    //  CAN_Payload_TX[2] = 0x00;
+    //  CAN_Payload_TX[3] = 0x00;
+    //  CAN_Payload_TX[4] = 0x00;
+    //  CAN_Payload_TX[5] = 0x00;
+    //  CAN_Payload_TX[6] = 0x00;
+    //  CAN_Payload_TX[7] = 0x00;
 
-      HAL_CAN_AddTxMessage(&hcan, &CAN_Header_TX, CAN_Payload_TX, &Mailbox);
-    }
-    else if (!ECU_List_Set)
-    {
-      printf("Configure ECU list\n");
+    //  HAL_CAN_AddTxMessage(&hcan, &CAN_Header_TX, CAN_Payload_TX, &Mailbox);
+    //}
+    //else if (!ECU_List_Set)
+    //{
+    //  printf("Configure ECU list\n");
 
-      CAN_Payload_TX[0] = 0x05;
-      CAN_Payload_TX[1] = 0xAA;
-      CAN_Payload_TX[2] = 0x04;
-      CAN_Payload_TX[3] = 0x10;
-      CAN_Payload_TX[4] = 0x11;
-      CAN_Payload_TX[5] = 0x12;
-      CAN_Payload_TX[6] = 0x00;
-      CAN_Payload_TX[7] = 0x00;
+    //  CAN_Payload_TX[0] = 0x05;
+    //  CAN_Payload_TX[1] = 0xAA;
+    //  CAN_Payload_TX[2] = 0x04;
+    //  CAN_Payload_TX[3] = 0x10;
+    //  CAN_Payload_TX[4] = 0x11;
+    //  CAN_Payload_TX[5] = 0x12;
+    //  CAN_Payload_TX[6] = 0x00;
+    //  CAN_Payload_TX[7] = 0x00;
 
-      HAL_CAN_AddTxMessage(&hcan, &CAN_Header_TX, CAN_Payload_TX, &Mailbox);
+    //  HAL_CAN_AddTxMessage(&hcan, &CAN_Header_TX, CAN_Payload_TX, &Mailbox);
 
-      ECU_List_Set = true;
-    }
-    else
-    {
-      CAN_Payload_TX[0] = 0x01;
-      CAN_Payload_TX[1] = 0x3E;
-      CAN_Payload_TX[2] = 0x00;
-      CAN_Payload_TX[3] = 0x00;
-      CAN_Payload_TX[4] = 0x00;
-      CAN_Payload_TX[5] = 0x00;
-      CAN_Payload_TX[6] = 0x00;
-      CAN_Payload_TX[7] = 0x00;
+    //  ECU_List_Set = true;
+    //}
+    //else
+    //{
+    //  CAN_Payload_TX[0] = 0x01;
+    //  CAN_Payload_TX[1] = 0x3E;
+    //  CAN_Payload_TX[2] = 0x00;
+    //  CAN_Payload_TX[3] = 0x00;
+    //  CAN_Payload_TX[4] = 0x00;
+    //  CAN_Payload_TX[5] = 0x00;
+    //  CAN_Payload_TX[6] = 0x00;
+    //  CAN_Payload_TX[7] = 0x00;
 
-      HAL_CAN_AddTxMessage(&hcan, &CAN_Header_TX, CAN_Payload_TX, &Mailbox);
-    }
+    //  HAL_CAN_AddTxMessage(&hcan, &CAN_Header_TX, CAN_Payload_TX, &Mailbox);
+    //}
 
-    printf("State: %d, error: %ld, Vehicle_Speed: %d, Water_Temp: %d, MAP: %d\n", HAL_CAN_GetState(&hcan), HAL_CAN_GetError(&hcan), Vehicle_Speed, Water_Temp, MAP);
+    //printf("State: %d, error: %ld, Vehicle_Speed: %d, Water_Temp: %d, MAP: %d\n", HAL_CAN_GetState(&hcan), HAL_CAN_GetError(&hcan), Vehicle_Speed, Water_Temp, MAP);
 
     HAL_GPIO_WritePin (LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
     //for (int i = 0; i < 4000000; i++)
@@ -701,6 +701,7 @@ void CAN_RX_Callback(CAN_HandleTypeDef *hcan)
   HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &CAN_Header, CAN_Payload);
 
   //printf("StdId: %ld, DLC: %ld, Payload: %d, %d, %d, %d, %d, %d, %d, %d\n", CAN_Header.StdId, CAN_Header.DLC, CAN_Payload[0], CAN_Payload[1], CAN_Payload[2], CAN_Payload[3], CAN_Payload[4], CAN_Payload[5], CAN_Payload[6], CAN_Payload[7]);
+  printf("%ld, %ld, %ld, %d, %d, %d, %d, %d, %d, %d, %d\n", CAN_Header.StdId, CAN_Header.IDE, CAN_Header.DLC, CAN_Payload[0], CAN_Payload[1], CAN_Payload[2], CAN_Payload[3], CAN_Payload[4], CAN_Payload[5], CAN_Payload[6], CAN_Payload[7]);
 
   if (CAN_Header.StdId == CAN_ECU_REPLY_ID)
   {
