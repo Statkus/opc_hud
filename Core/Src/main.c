@@ -87,12 +87,11 @@ UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 
-bool ECU_Connected = false;
-bool ECU_List_Set  = false;
-
-uint8_t Vehicle_Speed = 0;
 int16_t Water_Temp    = 0;
-uint8_t MAP           = 0;
+int16_t Intake_Temp   = 0;
+float Engine_Speed    = 0;
+uint8_t Vehicle_Speed = 0;
+float MAF             = 0;
 
 /* USER CODE END PV */
 
@@ -361,14 +360,14 @@ int main(void)
     Error_Handler();
   }
 
-  CAN_TxHeaderTypeDef CAN_Header_TX;
-  CAN_Header_TX.StdId = CAN_ECU_REQUEST_ID;
-  CAN_Header_TX.IDE = 0;
-  CAN_Header_TX.RTR = 0;
-  CAN_Header_TX.DLC = 8;
-
-  uint8_t CAN_Payload_TX[8];
+  CAN_TxHeaderTypeDef CAN_Header = {CAN_ECU_REQUEST_ID, 0, 0, 0, 8, DISABLE};
+  uint8_t CAN_Water_Temp_Payload[8]    = {0x02, 0x01, 0X05, 0X00, 0X00, 0X00, 0X00, 0X00};
+  uint8_t CAN_Engine_Speed_Payload[8]  = {0x02, 0x01, 0X0C, 0X00, 0X00, 0X00, 0X00, 0X00};
+  uint8_t CAN_Vehicle_Speed_Payload[8] = {0x02, 0x01, 0X0D, 0X00, 0X00, 0X00, 0X00, 0X00};
+  uint8_t CAN_Intake_Temp_Payload[8]   = {0x02, 0x01, 0X0F, 0X00, 0X00, 0X00, 0X00, 0X00};
+  uint8_t CAN_MAF_Payload[8]           = {0x02, 0x01, 0X10, 0X00, 0X00, 0X00, 0X00, 0X00};
   uint32_t Mailbox;
+  uint8_t Message_Selector = 0;
 
   printf("Start main loop\n");
 
@@ -382,55 +381,38 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-    if (!ECU_Connected)
-    {
-      printf("Try to connect to ECU\n");
-
-      CAN_Payload_TX[0] = 0x01;
-      CAN_Payload_TX[1] = 0x20;
-      CAN_Payload_TX[2] = 0x00;
-      CAN_Payload_TX[3] = 0x00;
-      CAN_Payload_TX[4] = 0x00;
-      CAN_Payload_TX[5] = 0x00;
-      CAN_Payload_TX[6] = 0x00;
-      CAN_Payload_TX[7] = 0x00;
-
-      HAL_CAN_AddTxMessage(&hcan, &CAN_Header_TX, CAN_Payload_TX, &Mailbox);
-    }
-    else if (!ECU_List_Set)
-    {
-      printf("Configure ECU list\n");
-
-      CAN_Payload_TX[0] = 0x05;
-      CAN_Payload_TX[1] = 0xAA;
-      CAN_Payload_TX[2] = 0x04;
-      CAN_Payload_TX[3] = 0x10;
-      CAN_Payload_TX[4] = 0x11;
-      CAN_Payload_TX[5] = 0x12;
-      CAN_Payload_TX[6] = 0x00;
-      CAN_Payload_TX[7] = 0x00;
-
-      HAL_CAN_AddTxMessage(&hcan, &CAN_Header_TX, CAN_Payload_TX, &Mailbox);
-
-      ECU_List_Set = true;
-    }
-    else
-    {
-      CAN_Payload_TX[0] = 0x01;
-      CAN_Payload_TX[1] = 0x3E;
-      CAN_Payload_TX[2] = 0x00;
-      CAN_Payload_TX[3] = 0x00;
-      CAN_Payload_TX[4] = 0x00;
-      CAN_Payload_TX[5] = 0x00;
-      CAN_Payload_TX[6] = 0x00;
-      CAN_Payload_TX[7] = 0x00;
-
-      HAL_CAN_AddTxMessage(&hcan, &CAN_Header_TX, CAN_Payload_TX, &Mailbox);
-    }
-
-    printf("State: %d, error: %ld, Vehicle_Speed: %d, Water_Temp: %d, MAP: %d\n", HAL_CAN_GetState(&hcan), HAL_CAN_GetError(&hcan), Vehicle_Speed, Water_Temp, MAP);
-
     HAL_GPIO_WritePin (LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+
+    HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Engine_Speed_Payload, &Mailbox);
+    HAL_Delay(50);
+    HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_MAF_Payload, &Mailbox);
+    HAL_Delay(50);
+
+    HAL_GPIO_WritePin (LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+
+    Message_Selector++;
+
+    switch (Message_Selector)
+    {
+      case 1:
+        HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Water_Temp_Payload, &Mailbox);
+        HAL_Delay(50);
+        break;
+
+      case 2:
+        HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Vehicle_Speed_Payload, &Mailbox);
+        HAL_Delay(50);
+        break;
+
+      case 3:
+        HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Intake_Temp_Payload, &Mailbox);
+        HAL_Delay(50);
+        Message_Selector = 0;
+        break;
+    }
+
+    //printf("State: %d, error: %ld, Vehicle_Speed: %d, Water_Temp: %d, MAP: %d\n", HAL_CAN_GetState(&hcan), HAL_CAN_GetError(&hcan), Vehicle_Speed, Water_Temp, MAP);
+
     //for (int i = 0; i < 4000000; i++)
     //{
     //}
@@ -441,8 +423,6 @@ int main(void)
     //    TM_ILI9341_DrawPixel(x, y, 0x001F);
     //  }
     //}
-    HAL_Delay(1000);
-    HAL_GPIO_WritePin (LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
     //for (int x = 0; x < 240; x++)
     //{
     //  for (int y = 0; y < 320; y++)
@@ -450,7 +430,6 @@ int main(void)
     //    TM_ILI9341_DrawPixel(x, y, 0xF800);
     //  }
     //}
-    HAL_Delay(50);
   }
   /* USER CODE END 3 */
 }
@@ -700,26 +679,30 @@ void CAN_RX_Callback(CAN_HandleTypeDef *hcan)
 
   HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &CAN_Header, CAN_Payload);
 
-  //printf("StdId: %ld, DLC: %ld, Payload: %d, %d, %d, %d, %d, %d, %d, %d\n", CAN_Header.StdId, CAN_Header.DLC, CAN_Payload[0], CAN_Payload[1], CAN_Payload[2], CAN_Payload[3], CAN_Payload[4], CAN_Payload[5], CAN_Payload[6], CAN_Payload[7]);
+  printf("StdId: %ld, DLC: %ld, Payload: %d, %d, %d, %d, %d, %d, %d, %d\n", CAN_Header.StdId, CAN_Header.DLC, CAN_Payload[0], CAN_Payload[1], CAN_Payload[2], CAN_Payload[3], CAN_Payload[4], CAN_Payload[5], CAN_Payload[6], CAN_Payload[7]);
 
   if (CAN_Header.StdId == CAN_ECU_REPLY_ID)
   {
-    ECU_Connected = true;
-  }
-  else if (CAN_Header.StdId == CAN_ECU_DATA_REPLY_ID)
-  {
-    switch (CAN_Payload[0])
+    switch (CAN_Payload[2])
     {
+      case 0x05:
+        Water_Temp = (int16_t)(CAN_Payload[3]) - 40;
+        break;
+
+      case 0x0C:
+        Engine_Speed = (((float)(CAN_Payload[3]) * 256.0) + (float)(CAN_Payload[4])) / 4.0;
+        break;
+
+      case 0x0D:
+        Vehicle_Speed = CAN_Payload[3];
+        break;
+
+      case 0x0F:
+        Intake_Temp = (int16_t)(CAN_Payload[3]) - 40;
+        break;
+
       case 0x10:
-        Vehicle_Speed = CAN_Payload[7];
-        break;
-
-      case 0x11:
-        Water_Temp = (int16_t)(CAN_Payload[2]) - 40;
-        break;
-
-      case 0x12:
-        MAP = CAN_Payload[7];
+        MAF = (((float)(CAN_Payload[3]) * 256.0) + (float)(CAN_Payload[4])) / 100.0;
         break;
     }
   }
