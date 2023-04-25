@@ -25,6 +25,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include "ili9341.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -34,37 +36,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
-#define ILI9341_RESET				0x01
-#define ILI9341_SLEEP_OUT			0x11
-#define ILI9341_GAMMA				0x26
-#define ILI9341_DISPLAY_OFF			0x28
-#define ILI9341_DISPLAY_ON			0x29
-#define ILI9341_COLUMN_ADDR			0x2A
-#define ILI9341_PAGE_ADDR			0x2B
-#define ILI9341_GRAM				0x2C
-#define ILI9341_MAC					0x36
-#define ILI9341_PIXEL_FORMAT		0x3A
-#define ILI9341_WDB					0x51
-#define ILI9341_WCD					0x53
-#define ILI9341_RGB_INTERFACE		0xB0
-#define ILI9341_FRC					0xB1
-#define ILI9341_BPC					0xB5
-#define ILI9341_DFC					0xB6
-#define ILI9341_POWER1				0xC0
-#define ILI9341_POWER2				0xC1
-#define ILI9341_VCOM1				0xC5
-#define ILI9341_VCOM2				0xC7
-#define ILI9341_POWERA				0xCB
-#define ILI9341_POWERB				0xCF
-#define ILI9341_PGAMMA				0xE0
-#define ILI9341_NGAMMA				0xE1
-#define ILI9341_DTCA				0xE8
-#define ILI9341_DTCB				0xEA
-#define ILI9341_POWER_SEQ			0xED
-#define ILI9341_3GAMMA_EN			0xF2
-#define ILI9341_INTERFACE			0xF6
-#define ILI9341_PRC					0xF7
 
 // CAN define
 #define CAN_ECU_REQUEST_ID    0x7E0
@@ -104,14 +75,6 @@ static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 int _write(int fd, char* ptr, int len);
-
-void TM_ILI9341_SendData(uint8_t data);
-void TM_ILI9341_SendCommand(uint8_t data);
-void TM_ILI9341_Delay(volatile unsigned int delay);
-void TM_ILI9341_DrawPixel(uint16_t x, uint16_t y, uint32_t color);
-void TM_ILI9341_SetCursorPosition(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
-
-
 void CAN_RX_Callback(CAN_HandleTypeDef *hcan);
 
 /* USER CODE END PFP */
@@ -154,174 +117,10 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  // Set CS high (deselect)
-  HAL_GPIO_WritePin (LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_SET);
+  /* LCD configuration ****************************************************************************/
+  ILI9341_Configure(&hspi1);
 
-  // Hardware reset
-  HAL_GPIO_WritePin (LCD_RESET_GPIO_Port, LCD_RESET_Pin, GPIO_PIN_RESET);
-  for (int i = 0; i < 20000; i++) {}
-  HAL_GPIO_WritePin (LCD_RESET_GPIO_Port, LCD_RESET_Pin, GPIO_PIN_SET);
-  for (int i = 0; i < 20000; i++) {}
-
-  //// Software reset
-  //uint8_t Data_To_Send[4] = {0};
-  //uint8_t Data_Received[4] = {0};
-  //Data_To_Send[0] = 0x01;
-
-  //HAL_GPIO_WritePin (LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_RESET);
-  //HAL_GPIO_WritePin (LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_RESET);
-  //if (HAL_SPI_TransmitReceive(&hspi1, Data_To_Send, Data_Received, 1, HAL_MAX_DELAY) != HAL_OK)
-  //{
-  //  Error_Handler();
-  //}
-  //HAL_GPIO_WritePin (LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_SET);
-
-  //for (int i = 0; i < 50000; i++) {}
-
-
-  //if (HAL_SPI_TransmitReceive(&hspi1, Data_To_Send, Data_Received, 1, HAL_MAX_DELAY) != HAL_OK)
-  //{
-  //  Error_Handler();
-  //}
-  //HAL_GPIO_WritePin (LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_SET);
-  //Data_To_Send[0] = 0;
-  //if (HAL_SPI_TransmitReceive(&hspi1, Data_To_Send, Data_Received, 3, HAL_MAX_DELAY) != HAL_OK)
-  //{
-  //  Error_Handler();
-  //}
-  //HAL_GPIO_WritePin (LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_SET);
-
-  //HAL_UART_Transmit(&huart1, "man ID: ", 8, HAL_MAX_DELAY);
-  //HAL_UART_Transmit(&huart1, &Data_Received[0], 1, HAL_MAX_DELAY);
-  //HAL_UART_Transmit(&huart1, "\n", 1, HAL_MAX_DELAY);
-
-  //HAL_UART_Transmit(&huart1, "driver ver: ", 12, HAL_MAX_DELAY);
-  //HAL_UART_Transmit(&huart1, &Data_Received[1], 1, HAL_MAX_DELAY);
-  //HAL_UART_Transmit(&huart1, "\n", 1, HAL_MAX_DELAY);
-
-  //HAL_UART_Transmit(&huart1, "driver ID: ", 11, HAL_MAX_DELAY);
-  //HAL_UART_Transmit(&huart1, &Data_Received[2], 1, HAL_MAX_DELAY);
-  //HAL_UART_Transmit(&huart1, "\n", 1, HAL_MAX_DELAY);
-
-	/* Software reset */
-	TM_ILI9341_SendCommand(ILI9341_RESET);
-	TM_ILI9341_Delay(50000);
-	
-	TM_ILI9341_SendCommand(ILI9341_POWERA);
-	TM_ILI9341_SendData(0x39);
-	TM_ILI9341_SendData(0x2C);
-	TM_ILI9341_SendData(0x00);
-	TM_ILI9341_SendData(0x34);
-	TM_ILI9341_SendData(0x02);
-	TM_ILI9341_SendCommand(ILI9341_POWERB);
-	TM_ILI9341_SendData(0x00);
-	TM_ILI9341_SendData(0xC1);
-	TM_ILI9341_SendData(0x30);
-	TM_ILI9341_SendCommand(ILI9341_DTCA);
-	TM_ILI9341_SendData(0x85);
-	TM_ILI9341_SendData(0x00);
-	TM_ILI9341_SendData(0x78);
-	TM_ILI9341_SendCommand(ILI9341_DTCB);
-	TM_ILI9341_SendData(0x00);
-	TM_ILI9341_SendData(0x00);
-	TM_ILI9341_SendCommand(ILI9341_POWER_SEQ);
-	TM_ILI9341_SendData(0x64);
-	TM_ILI9341_SendData(0x03);
-	TM_ILI9341_SendData(0x12);
-	TM_ILI9341_SendData(0x81);
-	TM_ILI9341_SendCommand(ILI9341_PRC);
-	TM_ILI9341_SendData(0x20);
-	TM_ILI9341_SendCommand(ILI9341_POWER1);
-	TM_ILI9341_SendData(0x23);
-	TM_ILI9341_SendCommand(ILI9341_POWER2);
-	TM_ILI9341_SendData(0x10);
-	TM_ILI9341_SendCommand(ILI9341_VCOM1);
-	TM_ILI9341_SendData(0x3E);
-	TM_ILI9341_SendData(0x28);
-	TM_ILI9341_SendCommand(ILI9341_VCOM2);
-	TM_ILI9341_SendData(0x86);
-	TM_ILI9341_SendCommand(ILI9341_MAC);
-	TM_ILI9341_SendData(0x48);
-	TM_ILI9341_SendCommand(ILI9341_PIXEL_FORMAT);
-	TM_ILI9341_SendData(0x55);
-	TM_ILI9341_SendCommand(ILI9341_FRC);
-	TM_ILI9341_SendData(0x00);
-	TM_ILI9341_SendData(0x18);
-	TM_ILI9341_SendCommand(ILI9341_DFC);
-	TM_ILI9341_SendData(0x08);
-	TM_ILI9341_SendData(0x82);
-	TM_ILI9341_SendData(0x27);
-	TM_ILI9341_SendCommand(ILI9341_3GAMMA_EN);
-	TM_ILI9341_SendData(0x00);
-	TM_ILI9341_SendCommand(ILI9341_COLUMN_ADDR);
-	TM_ILI9341_SendData(0x00);
-	TM_ILI9341_SendData(0x00);
-	TM_ILI9341_SendData(0x00);
-	TM_ILI9341_SendData(0xEF);
-	TM_ILI9341_SendCommand(ILI9341_PAGE_ADDR);
-	TM_ILI9341_SendData(0x00);
-	TM_ILI9341_SendData(0x00);
-	TM_ILI9341_SendData(0x01);
-	TM_ILI9341_SendData(0x3F);
-	TM_ILI9341_SendCommand(ILI9341_GAMMA);
-	TM_ILI9341_SendData(0x01);
-	TM_ILI9341_SendCommand(ILI9341_PGAMMA);
-	TM_ILI9341_SendData(0x0F);
-	TM_ILI9341_SendData(0x31);
-	TM_ILI9341_SendData(0x2B);
-	TM_ILI9341_SendData(0x0C);
-	TM_ILI9341_SendData(0x0E);
-	TM_ILI9341_SendData(0x08);
-	TM_ILI9341_SendData(0x4E);
-	TM_ILI9341_SendData(0xF1);
-	TM_ILI9341_SendData(0x37);
-	TM_ILI9341_SendData(0x07);
-	TM_ILI9341_SendData(0x10);
-	TM_ILI9341_SendData(0x03);
-	TM_ILI9341_SendData(0x0E);
-	TM_ILI9341_SendData(0x09);
-	TM_ILI9341_SendData(0x00);
-	TM_ILI9341_SendCommand(ILI9341_NGAMMA);
-	TM_ILI9341_SendData(0x00);
-	TM_ILI9341_SendData(0x0E);
-	TM_ILI9341_SendData(0x14);
-	TM_ILI9341_SendData(0x03);
-	TM_ILI9341_SendData(0x11);
-	TM_ILI9341_SendData(0x07);
-	TM_ILI9341_SendData(0x31);
-	TM_ILI9341_SendData(0xC1);
-	TM_ILI9341_SendData(0x48);
-	TM_ILI9341_SendData(0x08);
-	TM_ILI9341_SendData(0x0F);
-	TM_ILI9341_SendData(0x0C);
-	TM_ILI9341_SendData(0x31);
-	TM_ILI9341_SendData(0x36);
-	TM_ILI9341_SendData(0x0F);
-	TM_ILI9341_SendCommand(ILI9341_SLEEP_OUT);
-
-	TM_ILI9341_Delay(1000000);
-
-	TM_ILI9341_SendCommand(ILI9341_DISPLAY_ON);
-	TM_ILI9341_SendCommand(ILI9341_GRAM);
-	//TM_ILI9341_SendCommand(ILI9341_DISPLAY_OFF);
-  //TM_ILI9341_DrawPixel(100, 100, 0x001F);
-  //TM_ILI9341_DrawPixel(101, 100, 0x001F);
-  //TM_ILI9341_DrawPixel(102, 100, 0x001F);
-  //TM_ILI9341_DrawPixel(103, 100, 0x001F);
-  //TM_ILI9341_DrawPixel(90, 100, 0x00);
-  //TM_ILI9341_DrawPixel(91, 100, 0x00);
-  //TM_ILI9341_DrawPixel(92, 100, 0x00);
-  //TM_ILI9341_DrawPixel(93, 100, 0x00);
-  //for (int x = 0; x < 240; x++)
-  //{
-  //  for (int y = 0; y < 320; y++)
-  //  {
-  //    TM_ILI9341_DrawPixel(x, y, 0x001F);
-  //  }
-  //}
-
-  // CAN configuration
-
+  /* CAN configuration ****************************************************************************/
   CAN_FilterTypeDef FilterConfig;
   FilterConfig.FilterIdHigh         = CAN_ECU_REPLY_ID << 5;
   FilterConfig.FilterIdLow          = 0x0000;
@@ -411,25 +210,7 @@ int main(void)
         break;
     }
 
-    //printf("State: %d, error: %ld, Vehicle_Speed: %d, Water_Temp: %d, MAP: %d\n", HAL_CAN_GetState(&hcan), HAL_CAN_GetError(&hcan), Vehicle_Speed, Water_Temp, MAP);
-
-    //for (int i = 0; i < 4000000; i++)
-    //{
-    //}
-    //for (int x = 0; x < 240; x++)
-    //{
-    //  for (int y = 0; y < 320; y++)
-    //  {
-    //    TM_ILI9341_DrawPixel(x, y, 0x001F);
-    //  }
-    //}
-    //for (int x = 0; x < 240; x++)
-    //{
-    //  for (int y = 0; y < 320; y++)
-    //  {
-    //    TM_ILI9341_DrawPixel(x, y, 0xF800);
-    //  }
-    //}
+    //printf("State: %d, error: %ld, Vehicle_Speed: %d, Water_Temp: %d, MAF: %d\n", HAL_CAN_GetState(&hcan), HAL_CAN_GetError(&hcan), Vehicle_Speed, Water_Temp, MAF);
   }
   /* USER CODE END 3 */
 }
@@ -622,54 +403,6 @@ static void MX_GPIO_Init(void)
 int _write(int fd, char* ptr, int len) {
     HAL_UART_Transmit(&huart1, (uint8_t *) ptr, len, HAL_MAX_DELAY);
     return len;
-}
-
-void TM_ILI9341_SendCommand(uint8_t data) {
-  uint8_t Data_Received;
-  HAL_GPIO_WritePin (LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin (LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_RESET);
-  if (HAL_SPI_TransmitReceive(&hspi1, &data, &Data_Received, 1, HAL_MAX_DELAY) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  HAL_GPIO_WritePin (LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_SET);
-}
-
-void TM_ILI9341_SendData(uint8_t data) {
-  uint8_t Data_Received;
-  HAL_GPIO_WritePin (LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_SET);
-  HAL_GPIO_WritePin (LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_RESET);
-  if (HAL_SPI_TransmitReceive(&hspi1, &data, &Data_Received, 1, HAL_MAX_DELAY) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  HAL_GPIO_WritePin (LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_SET);
-}
-
-void TM_ILI9341_Delay(volatile unsigned int delay) {
-	for (; delay != 0; delay--); 
-}
-
-void TM_ILI9341_DrawPixel(uint16_t x, uint16_t y, uint32_t color) {
-	TM_ILI9341_SetCursorPosition(x, y, x, y);
-
-	TM_ILI9341_SendCommand(ILI9341_GRAM);
-	TM_ILI9341_SendData(color >> 8);
-	TM_ILI9341_SendData(color & 0xFF);
-}
-
-void TM_ILI9341_SetCursorPosition(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2) {
-	TM_ILI9341_SendCommand(ILI9341_COLUMN_ADDR);
-	TM_ILI9341_SendData(x1 >> 8);
-	TM_ILI9341_SendData(x1 & 0xFF);
-	TM_ILI9341_SendData(x2 >> 8);
-	TM_ILI9341_SendData(x2 & 0xFF);
-
-	TM_ILI9341_SendCommand(ILI9341_PAGE_ADDR);
-	TM_ILI9341_SendData(y1 >> 8);
-	TM_ILI9341_SendData(y1 & 0xFF);
-	TM_ILI9341_SendData(y2 >> 8);
-	TM_ILI9341_SendData(y2 & 0xFF);
 }
 
 void CAN_RX_Callback(CAN_HandleTypeDef *hcan)
