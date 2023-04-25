@@ -6,11 +6,18 @@
 #include "stm32f1xx_hal.h"
 
 /* Exported functions prototypes ---------------------------------------------*/
+
+// Gride is as follow:
+// Y-------0
+//         |
+//         |
+//         X
+//
+// with X = 240 pixels and Y = 320 pixels
+
 void ILI9341_Configure(SPI_HandleTypeDef *hspi);
-void ILI9341_SendData(SPI_HandleTypeDef *hspi, uint8_t data);
-void ILI9341_SendCommand(SPI_HandleTypeDef *hspi, uint8_t data);
-void ILI9341_DrawPixel(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint32_t color);
-void ILI9341_SetCursorPosition(SPI_HandleTypeDef *hspi, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
+void ILI9341_Fill_Color(SPI_HandleTypeDef *hspi, uint16_t color);
+void ILI9341_Draw_Pixel(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t color);
 
 /* Private defines -----------------------------------------------------------*/
 #define ILI9341_RESET        0x01
@@ -27,5 +34,11 @@ void ILI9341_SetCursorPosition(SPI_HandleTypeDef *hspi, uint16_t x1, uint16_t y1
 // To be tested
 #define ILI9341_WDB          0x51
 #define ILI9341_WCD          0x53
+
+#define COLOR_BLACK 0x0000
+#define COLOR_WHITE 0xFFFF
+#define COLOR_RED   0xF800
+#define COLOR_GREEN 0x07E0
+#define COLOR_BLUE  0x001F
 
 #endif /* __ILI9341_H */
