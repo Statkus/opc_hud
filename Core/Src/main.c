@@ -22,7 +22,6 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
-#include <stdbool.h>
 #include <stdio.h>
 
 #include "ili9341.h"
@@ -209,6 +208,8 @@ int main(void)
         Message_Selector = 0;
         break;
     }
+
+    ILI9341_Draw_Vehicle_Speed(&hspi1, Vehicle_Speed);
 
     //printf("State: %d, error: %ld, Vehicle_Speed: %d, Water_Temp: %d, MAF: %d\n", HAL_CAN_GetState(&hcan), HAL_CAN_GetError(&hcan), Vehicle_Speed, Water_Temp, MAF);
   }
