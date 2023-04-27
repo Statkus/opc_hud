@@ -20,12 +20,16 @@
 void ILI9341_Configure(SPI_HandleTypeDef *hspi);
 void ILI9341_Fill_Screen(SPI_HandleTypeDef *hspi, uint16_t color);
 void ILI9341_Draw_Pixel(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t color);
+void ILI9341_Draw_Large_Pixel(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t color);
+void ILI9341_Draw_Large_Pixel_With_Data_Color(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t offset_x, uint16_t offset_y, uint16_t size_x, uint16_t *color_index, uint8_t *data);
 void ILI9341_Draw_Char(SPI_HandleTypeDef *hspi, char c, uint16_t x, uint16_t y, FontTypeDef *font, uint16_t color);
 void ILI9341_Draw_String(SPI_HandleTypeDef *hspi, char *str, uint16_t x, uint16_t y, FontTypeDef *font, uint16_t color);
 void ILI9341_Draw_Vehicle_Speed(SPI_HandleTypeDef *hspi, uint8_t speed);
 void ILI9341_Draw_Water_Temp(SPI_HandleTypeDef *hspi, int16_t temp);
+void ILI9341_Draw_Pressure(SPI_HandleTypeDef *hspi, float pressure);
 void ILI9341_Draw_Image(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t size_x, uint16_t size_y, uint16_t *data);
 void ILI9341_Draw_Boost_Gauge(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t size_x, uint16_t size_y, uint16_t *color_index, uint8_t *data);
+void ILI9341_Draw_Boost_Gauge_Pointer(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t size_x, uint16_t size_y, uint16_t *color_index, uint8_t *data, float pressure);
 
 /* Private defines -----------------------------------------------------------*/
 // ILI9341 registers
@@ -54,7 +58,7 @@ void ILI9341_Draw_Boost_Gauge(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, u
 #define COLOR_RED       0xF800
 #define COLOR_GREEN     0x07E0
 #define COLOR_BLUE      0x001F
-#define COLOR_OPC_RED   0xF800
+#define COLOR_OPC_RED   0xE884
 #define COLOR_OPC_BLUE  0x027B
 
 // Vehicle speed display parameters

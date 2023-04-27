@@ -1,4 +1,5 @@
 /* Includes ------------------------------------------------------------------*/
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -12,10 +13,16 @@ void ILI9341_Send_Data(SPI_HandleTypeDef *hspi, uint8_t data);
 void ILI9341_Send_Multiple_Data(SPI_HandleTypeDef *hspi, uint8_t *data, uint16_t size);
 void ILI9341_Set_Cursor_Position(SPI_HandleTypeDef *hspi, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
 void ILI9341_Draw_3_Digit_Int(SPI_HandleTypeDef *hspi, int value, uint16_t x, uint16_t y, FontTypeDef *font, uint16_t color);
+void ILI9341_Draw_Line(SPI_HandleTypeDef *hspi, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color);
+void ILI9341_Draw_Line_With_Data_Color(SPI_HandleTypeDef *hspi, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t offset_x, uint16_t offset_y, uint16_t size_x, uint16_t *color_index, uint8_t *data);
 
 /* Private user code ---------------------------------------------------------*/
 char previous_speed_digit[3] = {' ', ' ', ' '};
 char previous_temp_digit[3]  = {' ', ' ', ' '};
+uint16_t previous_x0 = 74;
+uint16_t previous_y0 = 74;
+uint16_t previous_x1 = 74;
+uint16_t previous_y1 = 74;
 
 void ILI9341_Configure(SPI_HandleTypeDef *hspi)
 {
@@ -71,6 +78,8 @@ void ILI9341_Configure(SPI_HandleTypeDef *hspi)
 
   //ILI9341_Draw_Image(hspi, 50, 135, 140, 53, (uint16_t *)opc_logo_140x53_data);
   ILI9341_Draw_Boost_Gauge(hspi, 46, 86, 148, 148, (uint16_t *) opc_boost_gauge_148x148_color_index, (uint8_t *)opc_boost_gauge_148x148_data);
+
+  ILI9341_Draw_Boost_Gauge_Pointer(hspi, 46, 86, 148, 148, (uint16_t *) opc_boost_gauge_148x148_color_index, (uint8_t *)opc_boost_gauge_148x148_data, 0.0);
 }
 
 void ILI9341_Fill_Screen(SPI_HandleTypeDef *hspi, uint16_t color)
@@ -99,6 +108,44 @@ void ILI9341_Draw_Pixel(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_
 
   ILI9341_Send_Command(hspi, ILI9341_MEM_WRITE);
   ILI9341_Send_Multiple_Data(hspi, data, 2);
+}
+
+void ILI9341_Draw_Large_Pixel(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t color)
+{
+  uint8_t data[18] = {
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF};
+
+  ILI9341_Set_Cursor_Position(hspi, x - 1, y - 1, x + 1, y + 1);
+
+  ILI9341_Send_Command(hspi, ILI9341_MEM_WRITE);
+  ILI9341_Send_Multiple_Data(hspi, data, 18);
+}
+
+void ILI9341_Draw_Large_Pixel_With_Data_Color(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t offset_x, uint16_t offset_y, uint16_t size_x, uint16_t *color_index, uint8_t *data)
+{
+  uint8_t data_to_send[18];
+
+  for (int i = 0; i < 3; i++)
+  {
+    for (int j = 0; j < 3; j++)
+    {
+      data_to_send[(i + j * 3) * 2]     = color_index[data[x - 1 + i + ((y - 1 + j) * size_x)]] >> 8;
+      data_to_send[(i + j * 3) * 2 + 1] = color_index[data[x - 1 + i + ((y - 1 + j) * size_x)]] & 0xFF;
+    }
+  }
+
+  ILI9341_Set_Cursor_Position(hspi, x + offset_x - 1, y + offset_y - 1, x + offset_x + 1, y + offset_y + 1);
+
+  ILI9341_Send_Command(hspi, ILI9341_MEM_WRITE);
+  ILI9341_Send_Multiple_Data(hspi, data_to_send, 18);
 }
 
 void ILI9341_Draw_Char(SPI_HandleTypeDef *hspi, char c, uint16_t x, uint16_t y, FontTypeDef *font, uint16_t color)
@@ -232,6 +279,11 @@ void ILI9341_Draw_Water_Temp(SPI_HandleTypeDef *hspi, int16_t temp)
   }
 }
 
+void ILI9341_Draw_Pressure(SPI_HandleTypeDef *hspi, float pressure)
+{
+  ILI9341_Draw_Boost_Gauge_Pointer(hspi, 46, 86, 148, 148, (uint16_t *) opc_boost_gauge_148x148_color_index, (uint8_t *)opc_boost_gauge_148x148_data, pressure);
+}
+
 void ILI9341_Draw_Image(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t size_x, uint16_t size_y, uint16_t *data)
 {
 
@@ -266,6 +318,39 @@ void ILI9341_Draw_Boost_Gauge(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, u
   }
 
   HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_SET);
+}
+
+void ILI9341_Draw_Boost_Gauge_Pointer(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t size_x, uint16_t size_y, uint16_t *color_index, uint8_t *data, float pressure)
+{
+  ILI9341_Draw_Line_With_Data_Color(hspi, previous_x0, previous_y0, previous_x1, previous_y1, x, y, size_x, color_index, data);
+
+  float angle = pressure * 90.0 * -0.0174532923847;
+
+  uint16_t x0 = 88;
+  uint16_t y0 = 74;
+  uint16_t x1 = 5;
+  uint16_t y1 = 74;
+
+  float cos_x0 = (float)(x0 - 74) * cos(angle);
+  float sin_x0 = (float)(x0 - 74) * sin(angle);
+  float cos_y0 = (float)(y0 - 74) * cos(angle);
+  float sin_y0 = (float)(y0 - 74) * sin(angle);
+  float cos_x1 = (float)(x1 - 74) * cos(angle);
+  float sin_x1 = (float)(x1 - 74) * sin(angle);
+  float cos_y1 = (float)(y1 - 74) * cos(angle);
+  float sin_y1 = (float)(y1 - 74) * sin(angle);
+
+  x0 = cos_x0 + sin_y0 + 74;
+  y0 = -sin_x0 + cos_y0 + 74;
+  x1 = cos_x1 + sin_y1 + 74;
+  y1 = -sin_x1 + cos_y1 + 74;
+
+  previous_x0 = x0;
+  previous_y0 = y0;
+  previous_x1 = x1;
+  previous_y1 = y1;
+
+  ILI9341_Draw_Line(hspi, x + x0, y + y0, x + x1, y + y1, COLOR_OPC_RED);
 }
 
 void ILI9341_Send_Command(SPI_HandleTypeDef *hspi, uint8_t data)
@@ -329,5 +414,93 @@ void ILI9341_Draw_3_Digit_Int(SPI_HandleTypeDef *hspi, int value, uint16_t x, ui
     default:
       ILI9341_Draw_String(hspi, value_string, x, y, font, color);
       break;
+  }
+}
+
+void ILI9341_Draw_Line(SPI_HandleTypeDef *hspi, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color)
+{
+  int16_t dx;
+  int16_t dy;
+
+  if (x0 <= x1)
+  {
+    dx = x1 - x0;
+  }
+  else
+  {
+    dx = x0 - x1;
+  }
+  if (y0 <= y1)
+  {
+    dy = y1 - y0;
+  }
+  else
+  {
+    dy = y0 - y1;
+  }
+
+  int16_t sx = (x0 < x1) ? 1 : -1;
+  int16_t sy = (y0 < y1) ? 1 : -1;
+  int16_t err = ((dx > dy) ? dx : -dy) / 2;
+  int16_t e2;
+
+  while (1) {
+    ILI9341_Draw_Large_Pixel(hspi, x0, y0, color);
+    if (x0 == x1 && y0 == y1) {
+      break;
+    }
+    e2 = err;
+    if (e2 > -dx) {
+      err -= dy;
+      x0 += sx;
+    }
+    if (e2 < dy) {
+      err += dx;
+      y0 += sy;
+    }
+  }
+}
+
+void ILI9341_Draw_Line_With_Data_Color(SPI_HandleTypeDef *hspi, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t offset_x, uint16_t offset_y, uint16_t size_x, uint16_t *color_index, uint8_t *data)
+{
+  int16_t dx;
+  int16_t dy;
+
+  if (x0 <= x1)
+  {
+    dx = x1 - x0;
+  }
+  else
+  {
+    dx = x0 - x1;
+  }
+  if (y0 <= y1)
+  {
+    dy = y1 - y0;
+  }
+  else
+  {
+    dy = y0 - y1;
+  }
+
+  int16_t sx = (x0 < x1) ? 1 : -1;
+  int16_t sy = (y0 < y1) ? 1 : -1;
+  int16_t err = ((dx > dy) ? dx : -dy) / 2;
+  int16_t e2;
+
+  while (1) {
+    ILI9341_Draw_Large_Pixel_With_Data_Color(hspi, x0, y0, offset_x, offset_y, size_x, color_index, data);
+    if (x0 == x1 && y0 == y1) {
+      break;
+    }
+    e2 = err;
+    if (e2 > -dx) {
+      err -= dy;
+      x0 += sx;
+    }
+    if (e2 < dy) {
+      err += dx;
+      y0 += sy;
+    }
   }
 }
