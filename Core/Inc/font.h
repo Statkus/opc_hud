@@ -9,11 +9,13 @@
 typedef struct {
   uint8_t width;
   uint8_t height;
-  const uint16_t *data;
+  uint16_t *data;
 } FontTypeDef;
 
 extern FontTypeDef Font_7x10;
 extern FontTypeDef Font_11x18;
 extern FontTypeDef Font_16x26;
+extern FontTypeDef Water_Temp_Logo_16x18;
+extern FontTypeDef Degree_7x10;
 
 #endif /* __FONT_H */

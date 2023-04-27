@@ -57,7 +57,7 @@ UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 
-int16_t Water_Temp    = 0;
+int16_t Water_Temp    = -41;
 int16_t Intake_Temp   = 0;
 float Engine_Speed    = 0;
 uint8_t Vehicle_Speed = 0;
@@ -167,6 +167,9 @@ int main(void)
   uint32_t Mailbox;
   uint8_t Message_Selector = 0;
 
+  int16_t Previous_Water_Temp    = 32767;
+  uint8_t Previous_Vehicle_Speed = 255;
+
   printf("Start main loop\n");
 
   /* USER CODE END 2 */
@@ -209,7 +212,25 @@ int main(void)
         break;
     }
 
-    ILI9341_Draw_Vehicle_Speed(&hspi1, Vehicle_Speed);
+    if (Vehicle_Speed != Previous_Vehicle_Speed)
+    {
+      ILI9341_Draw_Vehicle_Speed(&hspi1, Vehicle_Speed);
+      Previous_Vehicle_Speed = Vehicle_Speed;
+    }
+
+    if (Water_Temp != Previous_Water_Temp)
+    {
+      ILI9341_Draw_Water_Temp(&hspi1, Water_Temp);
+      Previous_Water_Temp = Water_Temp;
+    }
+
+    Vehicle_Speed++;
+    Water_Temp++;
+
+    if (Water_Temp > 215)
+    {
+      Water_Temp = -40;
+    }
 
     //printf("State: %d, error: %ld, Vehicle_Speed: %d, Water_Temp: %d, MAF: %d\n", HAL_CAN_GetState(&hcan), HAL_CAN_GetError(&hcan), Vehicle_Speed, Water_Temp, MAF);
   }
