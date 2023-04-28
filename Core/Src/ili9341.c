@@ -24,6 +24,9 @@ uint16_t previous_y0 = 74;
 uint16_t previous_x1 = 74;
 uint16_t previous_y1 = 74;
 
+uint32_t gauge_pointer_pixel[512] = {0};
+uint32_t previous_gauge_pointer_pixel[512] = {0};
+
 void ILI9341_Configure(SPI_HandleTypeDef *hspi)
 {
   // Set CS high (deselect)
@@ -77,9 +80,9 @@ void ILI9341_Configure(SPI_HandleTypeDef *hspi)
   ILI9341_Draw_Char(hspi, 'C', TEMP_UNIT_X + 5, TEMP_UNIT_Y, &TEMP_UNIT_FONT, COLOR_WHITE);
 
   //ILI9341_Draw_Image(hspi, 50, 135, 140, 53, (uint16_t *)opc_logo_140x53_data);
-  ILI9341_Draw_Boost_Gauge(hspi, 46, 86, 148, 148, (uint16_t *) opc_boost_gauge_148x148_color_index, (uint8_t *)opc_boost_gauge_148x148_data);
+  ILI9341_Draw_Boost_Gauge(hspi, GAUGE_X, GAUGE_Y, GAUGE_WIDTH, GAUGE_HEIGHT, (uint16_t *) opc_boost_gauge_148x148_color_index, (uint8_t *)opc_boost_gauge_148x148_data);
 
-  ILI9341_Draw_Boost_Gauge_Pointer(hspi, 46, 86, 148, 148, (uint16_t *) opc_boost_gauge_148x148_color_index, (uint8_t *)opc_boost_gauge_148x148_data, 0.0);
+  ILI9341_Draw_Boost_Gauge_Pointer(hspi, GAUGE_X, GAUGE_Y, GAUGE_WIDTH, GAUGE_HEIGHT, (uint16_t *) opc_boost_gauge_148x148_color_index, (uint8_t *)opc_boost_gauge_148x148_data, 0.0);
 }
 
 void ILI9341_Fill_Screen(SPI_HandleTypeDef *hspi, uint16_t color)
@@ -143,6 +146,16 @@ void ILI9341_Draw_Large_Pixel(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, u
 
   ILI9341_Send_Command(hspi, ILI9341_MEM_WRITE);
   ILI9341_Send_Multiple_Data(hspi, data, 50);
+
+  const int k = x - 2 - GAUGE_POINTER_X + ((y - 2 - GAUGE_POINTER_Y) * GAUGE_POINTER_WIDTH);
+  for (int i = 0; i < 5; i++)
+  {
+    for (int j = 0; j < 5; j++)
+    {
+      int pixel = k + i + (j * GAUGE_POINTER_WIDTH);
+      gauge_pointer_pixel[pixel / 32] |= 1 << (pixel % 32);
+    }
+  }
 }
 
 void ILI9341_Draw_Large_Pixel_With_Data_Color(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t offset_x, uint16_t offset_y, uint16_t size_x, uint16_t *color_index, uint8_t *data)
@@ -297,7 +310,7 @@ void ILI9341_Draw_Water_Temp(SPI_HandleTypeDef *hspi, int16_t temp)
 
 void ILI9341_Draw_Pressure(SPI_HandleTypeDef *hspi, float pressure)
 {
-  ILI9341_Draw_Boost_Gauge_Pointer(hspi, 46, 86, 148, 148, (uint16_t *) opc_boost_gauge_148x148_color_index, (uint8_t *)opc_boost_gauge_148x148_data, pressure);
+  ILI9341_Draw_Boost_Gauge_Pointer(hspi, GAUGE_X, GAUGE_Y, GAUGE_WIDTH, GAUGE_HEIGHT, (uint16_t *) opc_boost_gauge_148x148_color_index, (uint8_t *)opc_boost_gauge_148x148_data, pressure);
 }
 
 void ILI9341_Draw_Image(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t size_x, uint16_t size_y, uint16_t *data)
@@ -338,7 +351,7 @@ void ILI9341_Draw_Boost_Gauge(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, u
 
 void ILI9341_Draw_Boost_Gauge_Pointer(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t size_x, uint16_t size_y, uint16_t *color_index, uint8_t *data, float pressure)
 {
-  ILI9341_Draw_Line_With_Data_Color(hspi, previous_x0, previous_y0, previous_x1, previous_y1, x, y, size_x, color_index, data);
+  //ILI9341_Draw_Line_With_Data_Color(hspi, previous_x0, previous_y0, previous_x1, previous_y1, x, y, size_x, color_index, data);
 
   float angle = pressure * 90.0 * -0.0174532923847;
 
@@ -366,7 +379,28 @@ void ILI9341_Draw_Boost_Gauge_Pointer(SPI_HandleTypeDef *hspi, uint16_t x, uint1
   previous_x1 = x1;
   previous_y1 = y1;
 
+  memcpy(previous_gauge_pointer_pixel, gauge_pointer_pixel, sizeof(gauge_pointer_pixel));
+  memset(gauge_pointer_pixel, 0, sizeof(gauge_pointer_pixel));
+
   ILI9341_Draw_Line(hspi, x + x0, y + y0, x + x1, y + y1, COLOR_OPC_RED);
+
+  for (int i = 0; i < 512; i++)
+  {
+    if (gauge_pointer_pixel[i] != previous_gauge_pointer_pixel[i])
+    {
+      for (int j = 0; j < 32; j++)
+      {
+        if ((gauge_pointer_pixel[i] & (1 << j)) != (previous_gauge_pointer_pixel[i] & (1 << j)))
+        {
+          int pixel = (i * 32) + j;
+          uint16_t erase_x = GAUGE_POINTER_X + (pixel % GAUGE_POINTER_WIDTH);
+          uint16_t erase_y = GAUGE_POINTER_Y + (pixel / GAUGE_POINTER_WIDTH);
+
+          ILI9341_Draw_Pixel(hspi, erase_x, erase_y, color_index[data[erase_x - x + ((erase_y - y) * size_x)]]);
+        }
+      }
+    }
+  }
 }
 
 void ILI9341_Send_Command(SPI_HandleTypeDef *hspi, uint8_t data)

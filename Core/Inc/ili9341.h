@@ -80,4 +80,14 @@ void ILI9341_Draw_Boost_Gauge_Pointer(SPI_HandleTypeDef *hspi, uint16_t x, uint1
 #define TEMP_FONT      Font_11x18
 #define TEMP_UNIT_FONT Font_7x10
 
+// Boost gauge display parameters
+#define GAUGE_X              46
+#define GAUGE_Y              86
+#define GAUGE_WIDTH          148
+#define GAUGE_HEIGHT         148
+#define GAUGE_POINTER_X      (GAUGE_X + 10)
+#define GAUGE_POINTER_Y      (GAUGE_Y + 10)
+#define GAUGE_POINTER_WIDTH  (GAUGE_WIDTH - 20)
+#define GAUGE_POINTER_HEIGHT (GAUGE_HEIGHT - 20)
+
 #endif /* __ILI9341_H */
