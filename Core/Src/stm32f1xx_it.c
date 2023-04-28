@@ -32,6 +32,9 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
+// CAN define
+#define CAN_ECU_REQUEST_ID    0x7E0
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -220,9 +223,44 @@ void TIM2_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM2_IRQn 0 */
 
+  static CAN_TxHeaderTypeDef CAN_Header = {CAN_ECU_REQUEST_ID, 0, 0, 0, 8, DISABLE};
+  static uint8_t CAN_Water_Temp_Payload[8]    = {0x02, 0x01, 0X05, 0X00, 0X00, 0X00, 0X00, 0X00};
+  static uint8_t CAN_Engine_Speed_Payload[8]  = {0x02, 0x01, 0X0C, 0X00, 0X00, 0X00, 0X00, 0X00};
+  static uint8_t CAN_Vehicle_Speed_Payload[8] = {0x02, 0x01, 0X0D, 0X00, 0X00, 0X00, 0X00, 0X00};
+  static uint8_t CAN_Intake_Temp_Payload[8]   = {0x02, 0x01, 0X0F, 0X00, 0X00, 0X00, 0X00, 0X00};
+  static uint8_t CAN_MAF_Payload[8]           = {0x02, 0x01, 0X10, 0X00, 0X00, 0X00, 0X00, 0X00};
+  static uint32_t Mailbox;
+  static uint8_t Message_Selector = 0;
+
   /* USER CODE END TIM2_IRQn 0 */
   HAL_TIM_IRQHandler(&htim2);
   /* USER CODE BEGIN TIM2_IRQn 1 */
+
+  Message_Selector++;
+
+  switch (Message_Selector)
+  {
+    case 1:
+      HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Engine_Speed_Payload, &Mailbox);
+      break;
+
+    case 2:
+      HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_MAF_Payload, &Mailbox);
+      break;
+
+    case 3:
+      HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Vehicle_Speed_Payload, &Mailbox);
+      break;
+
+    case 4:
+      HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Water_Temp_Payload, &Mailbox);
+      break;
+
+    case 5:
+      HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Intake_Temp_Payload, &Mailbox);
+      Message_Selector = 0;
+      break;
+  }
 
   /* USER CODE END TIM2_IRQn 1 */
 }

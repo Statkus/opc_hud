@@ -37,7 +37,6 @@
 /* USER CODE BEGIN PD */
 
 // CAN define
-#define CAN_ECU_REQUEST_ID    0x7E0
 #define CAN_ECU_REPLY_ID      0x7E8
 #define CAN_ECU_DATA_REPLY_ID 0x5E8
 
@@ -59,7 +58,7 @@ UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 
-int16_t Water_Temp    = -41;
+int16_t Water_Temp    = 0;
 int16_t Intake_Temp   = 0;
 float Engine_Speed    = 0;
 uint8_t Vehicle_Speed = 0;
@@ -163,14 +162,11 @@ int main(void)
     Error_Handler();
   }
 
-  CAN_TxHeaderTypeDef CAN_Header = {CAN_ECU_REQUEST_ID, 0, 0, 0, 8, DISABLE};
-  uint8_t CAN_Water_Temp_Payload[8]    = {0x02, 0x01, 0X05, 0X00, 0X00, 0X00, 0X00, 0X00};
-  uint8_t CAN_Engine_Speed_Payload[8]  = {0x02, 0x01, 0X0C, 0X00, 0X00, 0X00, 0X00, 0X00};
-  uint8_t CAN_Vehicle_Speed_Payload[8] = {0x02, 0x01, 0X0D, 0X00, 0X00, 0X00, 0X00, 0X00};
-  uint8_t CAN_Intake_Temp_Payload[8]   = {0x02, 0x01, 0X0F, 0X00, 0X00, 0X00, 0X00, 0X00};
-  uint8_t CAN_MAF_Payload[8]           = {0x02, 0x01, 0X10, 0X00, 0X00, 0X00, 0X00, 0X00};
-  uint32_t Mailbox;
-  uint8_t Message_Selector = 0;
+  /* Timer configuration for 20Hz interrupt *******************************************************/
+  if (HAL_TIM_Base_Start_IT(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
   int16_t Previous_Water_Temp    = 32767;
   uint8_t Previous_Vehicle_Speed = 255;
@@ -190,34 +186,6 @@ int main(void)
 
     HAL_GPIO_WritePin (LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
 
-    HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Engine_Speed_Payload, &Mailbox);
-    HAL_Delay(50);
-    HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_MAF_Payload, &Mailbox);
-    HAL_Delay(50);
-
-    HAL_GPIO_WritePin (LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-
-    Message_Selector++;
-
-    switch (Message_Selector)
-    {
-      case 1:
-        HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Water_Temp_Payload, &Mailbox);
-        HAL_Delay(50);
-        break;
-
-      case 2:
-        HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Vehicle_Speed_Payload, &Mailbox);
-        HAL_Delay(50);
-        break;
-
-      case 3:
-        HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Intake_Temp_Payload, &Mailbox);
-        HAL_Delay(50);
-        Message_Selector = 0;
-        break;
-    }
-
     if (Vehicle_Speed != Previous_Vehicle_Speed)
     {
       ILI9341_Draw_Vehicle_Speed(&hspi1, Vehicle_Speed);
@@ -230,14 +198,14 @@ int main(void)
       Previous_Water_Temp = Water_Temp;
     }
 
+    HAL_GPIO_WritePin (LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+
     if (MAP != Previous_MAP)
     {
       ILI9341_Draw_Boost(&hspi1, MAP);
       Previous_MAP = MAP;
     }
 
-    Vehicle_Speed++;
-    Water_Temp++;
     MAP++;
 
     if (Water_Temp > 215)
