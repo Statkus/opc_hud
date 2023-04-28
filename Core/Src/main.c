@@ -62,7 +62,7 @@ int16_t Intake_Temp   = 0;
 float Engine_Speed    = 0;
 uint8_t Vehicle_Speed = 0;
 float MAF             = 0;
-float MAP             = 0;
+int16_t MAP           = 0;
 
 /* USER CODE END PV */
 
@@ -170,7 +170,7 @@ int main(void)
 
   int16_t Previous_Water_Temp    = 32767;
   uint8_t Previous_Vehicle_Speed = 255;
-  uint8_t Previous_MAP           = 1.0;
+  int16_t Previous_MAP           = 32767;
 
   printf("Start main loop\n");
 
@@ -228,25 +228,23 @@ int main(void)
 
     if (MAP != Previous_MAP)
     {
-      ILI9341_Draw_Pressure(&hspi1, MAP);
+      ILI9341_Draw_Boost(&hspi1, MAP);
       Previous_MAP = MAP;
     }
 
     Vehicle_Speed++;
     Water_Temp++;
-    MAP += 0.01;
+    MAP++;
 
     if (Water_Temp > 215)
     {
       Water_Temp = -40;
     }
 
-    if (MAP > 1.8)
+    if (MAP > 160)
     {
-      MAP= -1.3;
+      MAP= -110;
     }
-
-    //printf("State: %d, error: %ld, Vehicle_Speed: %d, Water_Temp: %d, MAF: %d\n", HAL_CAN_GetState(&hcan), HAL_CAN_GetError(&hcan), Vehicle_Speed, Water_Temp, MAF);
   }
   /* USER CODE END 3 */
 }

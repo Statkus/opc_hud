@@ -26,10 +26,10 @@ void ILI9341_Draw_Char(SPI_HandleTypeDef *hspi, char c, uint16_t x, uint16_t y, 
 void ILI9341_Draw_String(SPI_HandleTypeDef *hspi, char *str, uint16_t x, uint16_t y, FontTypeDef *font, uint16_t color);
 void ILI9341_Draw_Vehicle_Speed(SPI_HandleTypeDef *hspi, uint8_t speed);
 void ILI9341_Draw_Water_Temp(SPI_HandleTypeDef *hspi, int16_t temp);
-void ILI9341_Draw_Pressure(SPI_HandleTypeDef *hspi, float pressure);
+void ILI9341_Draw_Boost(SPI_HandleTypeDef *hspi, int16_t boost);
 void ILI9341_Draw_Image(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t size_x, uint16_t size_y, uint16_t *data);
 void ILI9341_Draw_Boost_Gauge(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t size_x, uint16_t size_y, uint16_t *color_index, uint8_t *data);
-void ILI9341_Draw_Boost_Gauge_Pointer(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t size_x, uint16_t size_y, uint16_t *color_index, uint8_t *data, float pressure);
+void ILI9341_Draw_Boost_Gauge_Pointer(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t size_x, uint16_t size_y, uint16_t *color_index, uint8_t *data, int16_t boost);
 
 /* Private defines -----------------------------------------------------------*/
 // ILI9341 registers
@@ -63,9 +63,9 @@ void ILI9341_Draw_Boost_Gauge_Pointer(SPI_HandleTypeDef *hspi, uint16_t x, uint1
 
 // Vehicle speed display parameters
 #define SPEED_X         96
-#define SPEED_Y         0
+#define SPEED_Y         1
 #define SPEED_UNIT_X    149
-#define SPEED_UNIT_Y    14
+#define SPEED_UNIT_Y    15
 #define SPEED_FONT      Font_16x26
 #define SPEED_UNIT_FONT Font_7x10
 
@@ -80,14 +80,22 @@ void ILI9341_Draw_Boost_Gauge_Pointer(SPI_HandleTypeDef *hspi, uint16_t x, uint1
 #define TEMP_FONT      Font_11x18
 #define TEMP_UNIT_FONT Font_7x10
 
+// Boost numeric display parameters
+#define BOOST_X         155
+#define BOOST_Y         148
+#define BOOST_UNIT_X    145
+#define BOOST_UNIT_Y    180
+#define BOOST_FONT      Font_16x26
+#define BOOST_UNIT_FONT Font_11x18
+
 // Boost gauge display parameters
 #define GAUGE_X              46
 #define GAUGE_Y              86
 #define GAUGE_WIDTH          148
 #define GAUGE_HEIGHT         148
-#define GAUGE_POINTER_X      (GAUGE_X + 10)
-#define GAUGE_POINTER_Y      (GAUGE_Y + 10)
-#define GAUGE_POINTER_WIDTH  (GAUGE_WIDTH - 20)
-#define GAUGE_POINTER_HEIGHT (GAUGE_HEIGHT - 20)
+#define GAUGE_POINTER_X      56
+#define GAUGE_POINTER_Y      96
+#define GAUGE_POINTER_WIDTH  128
+#define GAUGE_POINTER_HEIGHT 128
 
 #endif /* __ILI9341_H */

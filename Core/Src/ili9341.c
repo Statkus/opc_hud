@@ -19,6 +19,7 @@ void ILI9341_Draw_Line_With_Data_Color(SPI_HandleTypeDef *hspi, uint16_t x0, uin
 /* Private user code ---------------------------------------------------------*/
 char previous_speed_digit[3] = {' ', ' ', ' '};
 char previous_temp_digit[3]  = {' ', ' ', ' '};
+char previous_boost_digit[5]  = {' ', ' ', ' ', ' ', ' '};
 uint16_t previous_x0 = 74;
 uint16_t previous_y0 = 74;
 uint16_t previous_x1 = 74;
@@ -82,7 +83,10 @@ void ILI9341_Configure(SPI_HandleTypeDef *hspi)
   //ILI9341_Draw_Image(hspi, 50, 135, 140, 53, (uint16_t *)opc_logo_140x53_data);
   ILI9341_Draw_Boost_Gauge(hspi, GAUGE_X, GAUGE_Y, GAUGE_WIDTH, GAUGE_HEIGHT, (uint16_t *) opc_boost_gauge_148x148_color_index, (uint8_t *)opc_boost_gauge_148x148_data);
 
-  ILI9341_Draw_Boost_Gauge_Pointer(hspi, GAUGE_X, GAUGE_Y, GAUGE_WIDTH, GAUGE_HEIGHT, (uint16_t *) opc_boost_gauge_148x148_color_index, (uint8_t *)opc_boost_gauge_148x148_data, 0.0);
+  ILI9341_Draw_Boost_Gauge_Pointer(hspi, GAUGE_X, GAUGE_Y, GAUGE_WIDTH, GAUGE_HEIGHT, (uint16_t *) opc_boost_gauge_148x148_color_index, (uint8_t *)opc_boost_gauge_148x148_data, 0);
+
+  // Draw boost unit
+  ILI9341_Draw_String(hspi, "bar", BOOST_UNIT_X, BOOST_UNIT_Y, &BOOST_UNIT_FONT, COLOR_WHITE);
 }
 
 void ILI9341_Fill_Screen(SPI_HandleTypeDef *hspi, uint16_t color)
@@ -308,9 +312,98 @@ void ILI9341_Draw_Water_Temp(SPI_HandleTypeDef *hspi, int16_t temp)
   }
 }
 
-void ILI9341_Draw_Pressure(SPI_HandleTypeDef *hspi, float pressure)
+void ILI9341_Draw_Boost(SPI_HandleTypeDef *hspi, int16_t boost)
 {
-  ILI9341_Draw_Boost_Gauge_Pointer(hspi, GAUGE_X, GAUGE_Y, GAUGE_WIDTH, GAUGE_HEIGHT, (uint16_t *) opc_boost_gauge_148x148_color_index, (uint8_t *)opc_boost_gauge_148x148_data, pressure);
+  ILI9341_Draw_Boost_Gauge_Pointer(hspi, GAUGE_X, GAUGE_Y, GAUGE_WIDTH, GAUGE_HEIGHT, (uint16_t *) opc_boost_gauge_148x148_color_index, (uint8_t *)opc_boost_gauge_148x148_data, boost);
+
+  char boost_string[7];
+  char boost_digit[5];
+
+  sprintf(boost_string, "%d", boost);
+
+  if (boost < -99)
+  {
+    boost_digit[0] = boost_string[3];
+    boost_digit[1] = boost_string[2];
+    boost_digit[2] = '.';
+    boost_digit[3] = boost_string[1];
+    boost_digit[4] = boost_string[0];
+  }
+  else if (boost < -9)
+  {
+    boost_digit[0] = boost_string[2];
+    boost_digit[1] = boost_string[1];
+    boost_digit[2] = '.';
+    boost_digit[3] = '0';
+    boost_digit[4] = boost_string[0];
+  }
+  else if (boost < 0)
+  {
+    boost_digit[0] = boost_string[1];
+    boost_digit[1] = '0';
+    boost_digit[2] = '.';
+    boost_digit[3] = '0';
+    boost_digit[4] = boost_string[0];
+  }
+  else if (boost < 10)
+  {
+    boost_digit[0] = boost_string[0];
+    boost_digit[1] = '0';
+    boost_digit[2] = '.';
+    boost_digit[3] = '0';
+    boost_digit[4] = ' ';
+  }
+  else if (boost < 100)
+  {
+    boost_digit[0] = boost_string[1];
+    boost_digit[1] = boost_string[0];
+    boost_digit[2] = '.';
+    boost_digit[3] = '0';
+    boost_digit[4] = ' ';
+  }
+  else
+  {
+    boost_digit[0] = boost_string[2];
+    boost_digit[1] = boost_string[1];
+    boost_digit[2] = '.';
+    boost_digit[3] = boost_string[0];
+    boost_digit[4] = ' ';
+  }
+
+  if (boost_digit[0] != previous_boost_digit[0])
+  {
+    ILI9341_Draw_Char(hspi, previous_boost_digit[0], BOOST_X + 4 * BOOST_FONT.width, BOOST_Y, &BOOST_FONT, COLOR_BLACK);
+    ILI9341_Draw_Char(hspi, boost_digit[0], BOOST_X + 4 * BOOST_FONT.width, BOOST_Y, &BOOST_FONT, COLOR_WHITE);
+    previous_boost_digit[0] = boost_digit[0];
+  }
+
+  if (boost_digit[1] != previous_boost_digit[1])
+  {
+    ILI9341_Draw_Char(hspi, previous_boost_digit[1], BOOST_X + 3 * BOOST_FONT.width, BOOST_Y, &BOOST_FONT, COLOR_BLACK);
+    ILI9341_Draw_Char(hspi, boost_digit[1], BOOST_X + 3 * BOOST_FONT.width, BOOST_Y, &BOOST_FONT, COLOR_WHITE);
+    previous_boost_digit[1] = boost_digit[1];
+  }
+
+  if (boost_digit[2] != previous_boost_digit[2])
+  {
+    ILI9341_Draw_Char(hspi, previous_boost_digit[2], BOOST_X + 2 * BOOST_FONT.width, BOOST_Y, &BOOST_FONT, COLOR_BLACK);
+    ILI9341_Draw_Char(hspi, boost_digit[2], BOOST_X + 2 * BOOST_FONT.width, BOOST_Y, &BOOST_FONT, COLOR_WHITE);
+    previous_boost_digit[2] = boost_digit[2];
+  }
+
+  if (boost_digit[3] != previous_boost_digit[3])
+  {
+    ILI9341_Draw_Char(hspi, previous_boost_digit[3], BOOST_X + BOOST_FONT.width, BOOST_Y, &BOOST_FONT, COLOR_BLACK);
+    ILI9341_Draw_Char(hspi, boost_digit[3], BOOST_X + BOOST_FONT.width, BOOST_Y, &BOOST_FONT, COLOR_WHITE);
+    previous_boost_digit[3] = boost_digit[3];
+  }
+
+  if (boost_digit[4] != previous_boost_digit[4])
+  {
+    ILI9341_Draw_Char(hspi, previous_boost_digit[4], BOOST_X, BOOST_Y, &BOOST_FONT, COLOR_BLACK);
+    ILI9341_Draw_Char(hspi, boost_digit[4], BOOST_X, BOOST_Y, &BOOST_FONT, COLOR_WHITE);
+    previous_boost_digit[4] = boost_digit[4];
+  }
 }
 
 void ILI9341_Draw_Image(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t size_x, uint16_t size_y, uint16_t *data)
@@ -349,11 +442,9 @@ void ILI9341_Draw_Boost_Gauge(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, u
   HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_SET);
 }
 
-void ILI9341_Draw_Boost_Gauge_Pointer(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t size_x, uint16_t size_y, uint16_t *color_index, uint8_t *data, float pressure)
+void ILI9341_Draw_Boost_Gauge_Pointer(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t size_x, uint16_t size_y, uint16_t *color_index, uint8_t *data, int16_t boost)
 {
-  //ILI9341_Draw_Line_With_Data_Color(hspi, previous_x0, previous_y0, previous_x1, previous_y1, x, y, size_x, color_index, data);
-
-  float angle = pressure * 90.0 * -0.0174532923847;
+  float angle = (float)boost * -0.0157079640776; // / 100 * 90 * -PI / 180
 
   uint16_t x0 = 85;
   uint16_t y0 = 74;
@@ -390,7 +481,8 @@ void ILI9341_Draw_Boost_Gauge_Pointer(SPI_HandleTypeDef *hspi, uint16_t x, uint1
     {
       for (int j = 0; j < 32; j++)
       {
-        if ((gauge_pointer_pixel[i] & (1 << j)) != (previous_gauge_pointer_pixel[i] & (1 << j)))
+        if ((gauge_pointer_pixel[i] & (1 << j)) != (previous_gauge_pointer_pixel[i] & (1 << j)) &&
+            (gauge_pointer_pixel[i] & (1 << j)) == 0)
         {
           int pixel = (i * 32) + j;
           uint16_t erase_x = GAUGE_POINTER_X + (pixel % GAUGE_POINTER_WIDTH);
