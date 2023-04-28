@@ -112,7 +112,23 @@ void ILI9341_Draw_Pixel(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_
 
 void ILI9341_Draw_Large_Pixel(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t color)
 {
-  uint8_t data[18] = {
+  uint8_t data[50] = {
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
+    color >> 8, color & 0xFF,
     color >> 8, color & 0xFF,
     color >> 8, color & 0xFF,
     color >> 8, color & 0xFF,
@@ -123,29 +139,29 @@ void ILI9341_Draw_Large_Pixel(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, u
     color >> 8, color & 0xFF,
     color >> 8, color & 0xFF};
 
-  ILI9341_Set_Cursor_Position(hspi, x - 1, y - 1, x + 1, y + 1);
+  ILI9341_Set_Cursor_Position(hspi, x - 2, y - 2, x + 2, y + 2);
 
   ILI9341_Send_Command(hspi, ILI9341_MEM_WRITE);
-  ILI9341_Send_Multiple_Data(hspi, data, 18);
+  ILI9341_Send_Multiple_Data(hspi, data, 50);
 }
 
 void ILI9341_Draw_Large_Pixel_With_Data_Color(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t offset_x, uint16_t offset_y, uint16_t size_x, uint16_t *color_index, uint8_t *data)
 {
-  uint8_t data_to_send[18];
+  uint8_t data_to_send[50];
 
-  for (int i = 0; i < 3; i++)
+  for (int i = 0; i < 5; i++)
   {
-    for (int j = 0; j < 3; j++)
+    for (int j = 0; j < 5; j++)
     {
-      data_to_send[(i + j * 3) * 2]     = color_index[data[x - 1 + i + ((y - 1 + j) * size_x)]] >> 8;
-      data_to_send[(i + j * 3) * 2 + 1] = color_index[data[x - 1 + i + ((y - 1 + j) * size_x)]] & 0xFF;
+      data_to_send[(i + j * 5) * 2]     = color_index[data[x - 2 + i + ((y - 2 + j) * size_x)]] >> 8;
+      data_to_send[(i + j * 5) * 2 + 1] = color_index[data[x - 2 + i + ((y - 2 + j) * size_x)]] & 0xFF;
     }
   }
 
-  ILI9341_Set_Cursor_Position(hspi, x + offset_x - 1, y + offset_y - 1, x + offset_x + 1, y + offset_y + 1);
+  ILI9341_Set_Cursor_Position(hspi, x + offset_x - 2, y + offset_y - 2, x + offset_x + 2, y + offset_y + 2);
 
   ILI9341_Send_Command(hspi, ILI9341_MEM_WRITE);
-  ILI9341_Send_Multiple_Data(hspi, data_to_send, 18);
+  ILI9341_Send_Multiple_Data(hspi, data_to_send, 50);
 }
 
 void ILI9341_Draw_Char(SPI_HandleTypeDef *hspi, char c, uint16_t x, uint16_t y, FontTypeDef *font, uint16_t color)
@@ -326,9 +342,9 @@ void ILI9341_Draw_Boost_Gauge_Pointer(SPI_HandleTypeDef *hspi, uint16_t x, uint1
 
   float angle = pressure * 90.0 * -0.0174532923847;
 
-  uint16_t x0 = 88;
+  uint16_t x0 = 85;
   uint16_t y0 = 74;
-  uint16_t x1 = 5;
+  uint16_t x1 = 13;
   uint16_t y1 = 74;
 
   float cos_x0 = (float)(x0 - 74) * cos(angle);
@@ -444,17 +460,32 @@ void ILI9341_Draw_Line(SPI_HandleTypeDef *hspi, uint16_t x0, uint16_t y0, uint16
   int16_t err = ((dx > dy) ? dx : -dy) / 2;
   int16_t e2;
 
+  uint8_t toggle = 0;
+
   while (1) {
-    ILI9341_Draw_Large_Pixel(hspi, x0, y0, color);
+    toggle++;
+
+    if (toggle == 1)
+    {
+      ILI9341_Draw_Large_Pixel(hspi, x0, y0, color);
+    }
+    else if (toggle == 2)
+    {
+      toggle = 0;
+    }
+
     if (x0 == x1 && y0 == y1) {
       break;
     }
+
     e2 = err;
-    if (e2 > -dx) {
+    if (e2 > -dx)
+    {
       err -= dy;
       x0 += sx;
     }
-    if (e2 < dy) {
+    if (e2 < dy)
+    {
       err += dx;
       y0 += sy;
     }
@@ -488,8 +519,20 @@ void ILI9341_Draw_Line_With_Data_Color(SPI_HandleTypeDef *hspi, uint16_t x0, uin
   int16_t err = ((dx > dy) ? dx : -dy) / 2;
   int16_t e2;
 
+  uint8_t toggle = 0;
+
   while (1) {
-    ILI9341_Draw_Large_Pixel_With_Data_Color(hspi, x0, y0, offset_x, offset_y, size_x, color_index, data);
+    toggle++;
+
+    if (toggle == 1)
+    {
+      ILI9341_Draw_Large_Pixel_With_Data_Color(hspi, x0, y0, offset_x, offset_y, size_x, color_index, data);
+    }
+    else if (toggle == 2)
+    {
+      toggle = 0;
+    }
+
     if (x0 == x1 && y0 == y1) {
       break;
     }
