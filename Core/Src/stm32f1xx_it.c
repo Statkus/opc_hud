@@ -262,6 +262,8 @@ void TIM2_IRQHandler(void)
       break;
   }
 
+  HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+
   /* USER CODE END TIM2_IRQn 1 */
 }
 

@@ -184,7 +184,24 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-    HAL_GPIO_WritePin (LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+    // Intake pressure (P in bar) is computed from formula PV=nRT depending on:
+    // - Air flow rate (MAF in g/s)
+    // - Intake air temperature (IAT in °C)
+    // - Engine speed (RPM in rpm)
+    // - Engine size constant (C in cm3) = 1998
+    // - Air molar mass constant (M) = 28.9645
+    // - Ideal gas constant (R in J/k*mol) = 8.314
+    //
+    // P = ((MAF * 60) / (RPM / 2 * C * M * 10^-6)) * R * (IAT + 273.15) * 10^-5
+    //MAP = (MAF * 60.0) / (Engine_Speed / 2 * 1998.0 * 28.9645 * 0.000001) * 8.314 * ((float)(Intake_Temp) + 273.15) * 0.00001 * 100.0;
+    if (Engine_Speed > 0.0)
+    {
+      MAP = (int16_t)(MAF / Engine_Speed * ((float)(Intake_Temp) + 273.15) * 17.2397022247) - 100;
+    }
+    else
+    {
+      MAP = 0;
+    }
 
     if (Vehicle_Speed != Previous_Vehicle_Speed)
     {
@@ -198,24 +215,10 @@ int main(void)
       Previous_Water_Temp = Water_Temp;
     }
 
-    HAL_GPIO_WritePin (LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-
     if (MAP != Previous_MAP)
     {
       ILI9341_Draw_Boost(&hspi1, MAP);
       Previous_MAP = MAP;
-    }
-
-    MAP++;
-
-    if (Water_Temp > 215)
-    {
-      Water_Temp = -40;
-    }
-
-    if (MAP > 160)
-    {
-      MAP= -110;
     }
   }
   /* USER CODE END 3 */
