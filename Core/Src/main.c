@@ -58,12 +58,11 @@ UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 
-int16_t Water_Temp    = 0;
-int16_t Intake_Temp   = 0;
-float Engine_Speed    = 0;
-uint8_t Vehicle_Speed = 0;
-float MAF             = 0;
-int16_t MAP           = 0;
+int16_t water_temp    = 0;
+int16_t intake_temp   = 0;
+float engine_speed    = 0.0;
+uint8_t vehicle_speed = 0;
+float MAF             = 0.0;
 
 /* USER CODE END PV */
 
@@ -168,11 +167,14 @@ int main(void)
     Error_Handler();
   }
 
-  int16_t Previous_Water_Temp    = 32767;
-  uint8_t Previous_Vehicle_Speed = 255;
-  int16_t Previous_MAP           = 32767;
-
-  printf("Start main loop\n");
+  int16_t boost                   = 0;
+  int16_t filtered_boost          = 0;
+  uint8_t previous_vehicle_speed  = 255;
+  uint16_t previous_engine_speed  = 65535;
+  int16_t previous_water_temp     = 32767;
+  int16_t previous_intake_temp    = 32767;
+  uint16_t previous_MAF           = 65535;
+  int16_t previous_filtered_boost = 32767;
 
   /* USER CODE END 2 */
 
@@ -193,32 +195,51 @@ int main(void)
     // - Ideal gas constant (R in J/k*mol) = 8.314
     //
     // P = ((MAF * 60) / (RPM / 2 * C * M * 10^-6)) * R * (IAT + 273.15) * 10^-5
-    //MAP = (MAF * 60.0) / (Engine_Speed / 2 * 1998.0 * 28.9645 * 0.000001) * 8.314 * ((float)(Intake_Temp) + 273.15) * 0.00001 * 100.0;
-    if (Engine_Speed > 0.0)
+    //boost = (MAF * 60.0) / (engine_speed / 2 * 1998.0 * 28.9645 * 0.000001) * 8.314 * ((float)(intake_temp) + 273.15) * 0.00001 * 100.0;
+    if (engine_speed > 0.0)
     {
-      MAP = (int16_t)(MAF / Engine_Speed * ((float)(Intake_Temp) + 273.15) * 17.2397022247) - 100;
+      boost = (int16_t)(MAF / engine_speed * ((float)(intake_temp) + 273.15) * 17.2397022247) - 100;
+      filtered_boost = filtered_boost + 0.5 * (boost - filtered_boost);
     }
     else
     {
-      MAP = 0;
+      filtered_boost = 0;
     }
 
-    if (Vehicle_Speed != Previous_Vehicle_Speed)
+    if (vehicle_speed != previous_vehicle_speed)
     {
-      ILI9341_Draw_Vehicle_Speed(&hspi1, Vehicle_Speed);
-      Previous_Vehicle_Speed = Vehicle_Speed;
+      ILI9341_Draw_Vehicle_Speed(&hspi1, vehicle_speed);
+      previous_vehicle_speed = vehicle_speed;
     }
 
-    if (Water_Temp != Previous_Water_Temp)
+    if ((uint16_t)engine_speed != previous_engine_speed)
     {
-      ILI9341_Draw_Water_Temp(&hspi1, Water_Temp);
-      Previous_Water_Temp = Water_Temp;
+      ILI9341_Draw_Engine_Speed(&hspi1, (uint16_t)engine_speed);
+      previous_engine_speed = (uint16_t)engine_speed;
     }
 
-    if (MAP != Previous_MAP)
+    if (water_temp != previous_water_temp)
     {
-      ILI9341_Draw_Boost(&hspi1, MAP);
-      Previous_MAP = MAP;
+      ILI9341_Draw_Water_Temp(&hspi1, water_temp);
+      previous_water_temp = water_temp;
+    }
+
+    if (intake_temp != previous_intake_temp)
+    {
+      ILI9341_Draw_Intake_Temp(&hspi1, intake_temp);
+      previous_intake_temp = intake_temp;
+    }
+
+    if ((uint16_t)MAF != previous_MAF)
+    {
+      ILI9341_Draw_MAF(&hspi1, (uint16_t)MAF);
+      previous_MAF = MAF;
+    }
+
+    if (filtered_boost != previous_filtered_boost)
+    {
+      ILI9341_Draw_Boost(&hspi1, filtered_boost);
+      previous_filtered_boost = filtered_boost;
     }
   }
   /* USER CODE END 3 */
@@ -466,26 +487,26 @@ void CAN_RX_Callback(CAN_HandleTypeDef *hcan)
 
   HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &CAN_Header, CAN_Payload);
 
-  printf("StdId: %ld, DLC: %ld, Payload: %d, %d, %d, %d, %d, %d, %d, %d\n", CAN_Header.StdId, CAN_Header.DLC, CAN_Payload[0], CAN_Payload[1], CAN_Payload[2], CAN_Payload[3], CAN_Payload[4], CAN_Payload[5], CAN_Payload[6], CAN_Payload[7]);
+  //printf("StdId: %ld, DLC: %ld, Payload: %d, %d, %d, %d, %d, %d, %d, %d\n", CAN_Header.StdId, CAN_Header.DLC, CAN_Payload[0], CAN_Payload[1], CAN_Payload[2], CAN_Payload[3], CAN_Payload[4], CAN_Payload[5], CAN_Payload[6], CAN_Payload[7]);
 
   if (CAN_Header.StdId == CAN_ECU_REPLY_ID)
   {
     switch (CAN_Payload[2])
     {
       case 0x05:
-        Water_Temp = (int16_t)(CAN_Payload[3]) - 40;
+        water_temp = (int16_t)(CAN_Payload[3]) - 40;
         break;
 
       case 0x0C:
-        Engine_Speed = (((float)(CAN_Payload[3]) * 256.0) + (float)(CAN_Payload[4])) / 4.0;
+        engine_speed = (((float)(CAN_Payload[3]) * 256.0) + (float)(CAN_Payload[4])) / 4.0;
         break;
 
       case 0x0D:
-        Vehicle_Speed = CAN_Payload[3];
+        vehicle_speed = CAN_Payload[3];
         break;
 
       case 0x0F:
-        Intake_Temp = (int16_t)(CAN_Payload[3]) - 40;
+        intake_temp = (int16_t)(CAN_Payload[3]) - 40;
         break;
 
       case 0x10:
