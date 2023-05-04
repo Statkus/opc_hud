@@ -167,13 +167,15 @@ int main(void)
     Error_Handler();
   }
 
+  /* LED configuration (switch off) ***************************************************************/
+  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+
+  /* Variables ************************************************************************************/
   int16_t boost                   = 0;
   int16_t filtered_boost          = 0;
   uint8_t previous_vehicle_speed  = 255;
-  uint16_t previous_engine_speed  = 65535;
   int16_t previous_water_temp     = 32767;
   int16_t previous_intake_temp    = 32767;
-  uint16_t previous_MAF           = 65535;
   int16_t previous_filtered_boost = 32767;
 
   /* USER CODE END 2 */
@@ -199,7 +201,7 @@ int main(void)
     if (engine_speed > 0.0)
     {
       boost = (int16_t)(MAF / engine_speed * ((float)(intake_temp) + 273.15) * 17.2397022247) - 100;
-      filtered_boost = filtered_boost + 0.5 * (boost - filtered_boost);
+      filtered_boost = filtered_boost + 0.3 * (boost - filtered_boost);
     }
     else
     {
@@ -212,12 +214,6 @@ int main(void)
       previous_vehicle_speed = vehicle_speed;
     }
 
-    if ((uint16_t)engine_speed != previous_engine_speed)
-    {
-      ILI9341_Draw_Engine_Speed(&hspi1, (uint16_t)engine_speed);
-      previous_engine_speed = (uint16_t)engine_speed;
-    }
-
     if (water_temp != previous_water_temp)
     {
       ILI9341_Draw_Water_Temp(&hspi1, water_temp);
@@ -228,12 +224,6 @@ int main(void)
     {
       ILI9341_Draw_Intake_Temp(&hspi1, intake_temp);
       previous_intake_temp = intake_temp;
-    }
-
-    if ((uint16_t)MAF != previous_MAF)
-    {
-      ILI9341_Draw_MAF(&hspi1, (uint16_t)MAF);
-      previous_MAF = MAF;
     }
 
     if (filtered_boost != previous_filtered_boost)

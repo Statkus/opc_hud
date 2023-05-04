@@ -33,7 +33,7 @@
 /* USER CODE BEGIN PD */
 
 // CAN define
-#define CAN_ECU_REQUEST_ID    0x7E0
+#define CAN_ECU_REQUEST_ID 0x7E0
 
 /* USER CODE END PD */
 
@@ -230,39 +230,54 @@ void TIM2_IRQHandler(void)
   static uint8_t CAN_Intake_Temp_Payload[8]   = {0x02, 0x01, 0X0F, 0X00, 0X00, 0X00, 0X00, 0X00};
   static uint8_t CAN_MAF_Payload[8]           = {0x02, 0x01, 0X10, 0X00, 0X00, 0X00, 0X00, 0X00};
   static uint32_t Mailbox;
-  static uint8_t Message_Selector = 0;
+  static uint8_t High_Freq_Message_Selector = 0;
+  static uint8_t Low_Freq_Message_Selector = 0;
+  static uint8_t Low_Freq_Divider = 0;
 
   /* USER CODE END TIM2_IRQn 0 */
   HAL_TIM_IRQHandler(&htim2);
   /* USER CODE BEGIN TIM2_IRQn 1 */
 
-  Message_Selector++;
+  Low_Freq_Divider++;
 
-  switch (Message_Selector)
+  if (Low_Freq_Divider >= 20)
   {
-    case 1:
-      HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Engine_Speed_Payload, &Mailbox);
-      break;
+    Low_Freq_Divider = 0;
 
-    case 2:
-      HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_MAF_Payload, &Mailbox);
-      break;
+    Low_Freq_Message_Selector++;
 
-    case 3:
-      HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Vehicle_Speed_Payload, &Mailbox);
-      break;
+    switch (Low_Freq_Message_Selector)
+    {
+      case 1:
+        HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Water_Temp_Payload, &Mailbox);
+        break;
 
-    case 4:
-      HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Water_Temp_Payload, &Mailbox);
-      break;
-
-    case 5:
-      HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Intake_Temp_Payload, &Mailbox);
-      Message_Selector = 0;
-      break;
+      case 2:
+        HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Intake_Temp_Payload, &Mailbox);
+        Low_Freq_Message_Selector = 0;
+        break;
+    }
   }
+  else
+  {
+    High_Freq_Message_Selector++;
 
-  HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+    switch (High_Freq_Message_Selector)
+    {
+      case 1:
+        HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Engine_Speed_Payload, &Mailbox);
+        break;
+
+      case 2:
+        HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Vehicle_Speed_Payload, &Mailbox);
+        break;
+
+      case 3:
+        HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_MAF_Payload, &Mailbox);
+        High_Freq_Message_Selector = 0;
+        break;
+    }
+  }
 
   /* USER CODE END TIM2_IRQn 1 */
 }

@@ -25,10 +25,8 @@ void ILI9341_Draw_Large_Pixel_With_Data_Color(SPI_HandleTypeDef *hspi, uint16_t 
 void ILI9341_Draw_Char(SPI_HandleTypeDef *hspi, char c, uint16_t x, uint16_t y, FontTypeDef *font, uint16_t color);
 void ILI9341_Draw_String(SPI_HandleTypeDef *hspi, char *str, uint16_t x, uint16_t y, FontTypeDef *font, uint16_t color);
 void ILI9341_Draw_Vehicle_Speed(SPI_HandleTypeDef *hspi, uint8_t speed);
-void ILI9341_Draw_Engine_Speed(SPI_HandleTypeDef *hspi, uint16_t espeed);
 void ILI9341_Draw_Water_Temp(SPI_HandleTypeDef *hspi, int16_t temp);
 void ILI9341_Draw_Intake_Temp(SPI_HandleTypeDef *hspi, int16_t itemp);
-void ILI9341_Draw_MAF(SPI_HandleTypeDef *hspi, uint16_t MAF);
 void ILI9341_Draw_Boost(SPI_HandleTypeDef *hspi, int16_t boost);
 void ILI9341_Draw_Image(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t size_x, uint16_t size_y, uint16_t *data);
 void ILI9341_Draw_Boost_Gauge(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t size_x, uint16_t size_y, uint16_t *color_index, uint8_t *data);
@@ -72,17 +70,6 @@ void ILI9341_Draw_Boost_Gauge_Pointer(SPI_HandleTypeDef *hspi, uint16_t x, uint1
 #define SPEED_FONT      Font_16x26
 #define SPEED_UNIT_FONT Font_7x10
 
-// Engine speed display parameters
-#define ESPEED_LOGO_X    147
-#define ESPEED_LOGO_Y    264
-#define ESPEED_X         175
-#define ESPEED_Y         256
-#define ESPEED_UNIT_X    219
-#define ESPEED_UNIT_Y    264
-#define ESPEED_LOGO_FONT Font_7x10
-#define ESPEED_FONT      Font_11x18
-#define ESPEED_UNIT_FONT Font_7x10
-
 // Water temperature display parameters
 #define TEMP_LOGO_X    0
 #define TEMP_LOGO_Y    275
@@ -104,17 +91,6 @@ void ILI9341_Draw_Boost_Gauge_Pointer(SPI_HandleTypeDef *hspi, uint16_t x, uint1
 #define ITEMP_LOGO_FONT Font_7x10
 #define ITEMP_FONT      Font_11x18
 #define ITEMP_UNIT_FONT Font_7x10
-
-// Intake temperature display parameters
-#define MAF_LOGO_X    158
-#define MAF_LOGO_Y    244
-#define MAF_X         186
-#define MAF_Y         236
-#define MAF_UNIT_X    219
-#define MAF_UNIT_Y    244
-#define MAF_LOGO_FONT Font_7x10
-#define MAF_FONT      Font_11x18
-#define MAF_UNIT_FONT Font_7x10
 
 // Boost numeric display parameters
 #define BOOST_X         155

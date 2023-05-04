@@ -18,7 +18,6 @@ void ILI9341_Draw_Line_With_Data_Color(SPI_HandleTypeDef *hspi, uint16_t x0, uin
 
 /* Private user code ---------------------------------------------------------*/
 char previous_speed_digit[3]  = {' ', ' ', ' '};
-char previous_espeed_digit[4] = {' ', ' ', ' ', ' '};
 char previous_temp_digit[3]   = {' ', ' ', ' '};
 char previous_itemp_digit[3]  = {' ', ' ', ' '};
 char previous_MAF_digit[3]    = {' ', ' ', ' '};
@@ -78,10 +77,6 @@ void ILI9341_Configure(SPI_HandleTypeDef *hspi)
   // Draw vehicle speed unit
   ILI9341_Draw_String(hspi, "km/h", SPEED_UNIT_X, SPEED_UNIT_Y, &SPEED_UNIT_FONT, COLOR_WHITE);
 
-  // Draw engine speed unit
-  ILI9341_Draw_String(hspi, "RPM:", ESPEED_LOGO_X, ESPEED_LOGO_Y, &ESPEED_LOGO_FONT, COLOR_WHITE);
-  ILI9341_Draw_String(hspi, "rpm", ESPEED_UNIT_X, ESPEED_UNIT_Y, &ESPEED_UNIT_FONT, COLOR_WHITE);
-
   // Draw water temp unit
   ILI9341_Draw_Char(hspi, ' ', TEMP_LOGO_X, TEMP_LOGO_Y, &TEMP_LOGO_FONT, COLOR_WHITE);
   ILI9341_Draw_Char(hspi, ' ', TEMP_UNIT_X, TEMP_UNIT_Y, &Degree_7x10, COLOR_WHITE);
@@ -91,10 +86,6 @@ void ILI9341_Configure(SPI_HandleTypeDef *hspi)
   ILI9341_Draw_String(hspi, "IAT:", ITEMP_LOGO_X, ITEMP_LOGO_Y, &ITEMP_LOGO_FONT, COLOR_WHITE);
   ILI9341_Draw_Char(hspi, ' ', ITEMP_UNIT_X, ITEMP_UNIT_Y, &Degree_7x10, COLOR_WHITE);
   ILI9341_Draw_Char(hspi, 'C', ITEMP_UNIT_X + 5, ITEMP_UNIT_Y, &ITEMP_UNIT_FONT, COLOR_WHITE);
-
-  // Draw MAF unit
-  ILI9341_Draw_String(hspi, "MAF:", MAF_LOGO_X, MAF_LOGO_Y, &MAF_LOGO_FONT, COLOR_WHITE);
-  ILI9341_Draw_String(hspi, "g/s", MAF_UNIT_X, MAF_UNIT_Y, &MAF_UNIT_FONT, COLOR_WHITE);
 
   // Draw boost gauge
   ILI9341_Draw_Boost_Gauge(hspi, GAUGE_X, GAUGE_Y, GAUGE_WIDTH, GAUGE_HEIGHT, (uint16_t *) opc_boost_gauge_148x148_color_index, (uint8_t *)opc_boost_gauge_148x148_data);
@@ -267,71 +258,6 @@ void ILI9341_Draw_Vehicle_Speed(SPI_HandleTypeDef *hspi, uint8_t speed)
   }
 }
 
-void ILI9341_Draw_Engine_Speed(SPI_HandleTypeDef *hspi, uint16_t espeed)
-{
-  char espeed_string[6];
-  char espeed_digit[4];
-
-  sprintf(espeed_string, "%d", espeed);
-
-  if (espeed < 10)
-  {
-    espeed_digit[0] = espeed_string[0];
-    espeed_digit[1] = ' ';
-    espeed_digit[2] = ' ';
-    espeed_digit[3] = ' ';
-  }
-  else if (espeed < 100)
-  {
-    espeed_digit[0] = espeed_string[1];
-    espeed_digit[1] = espeed_string[0];
-    espeed_digit[2] = ' ';
-    espeed_digit[3] = ' ';
-  }
-  else if (espeed < 1000)
-  {
-    espeed_digit[0] = espeed_string[2];
-    espeed_digit[1] = espeed_string[1];
-    espeed_digit[2] = espeed_string[0];
-    espeed_digit[3] = ' ';
-  }
-  else
-  {
-    espeed_digit[0] = espeed_string[3];
-    espeed_digit[1] = espeed_string[2];
-    espeed_digit[2] = espeed_string[1];
-    espeed_digit[3] = espeed_string[0];
-  }
-
-  if (espeed_digit[0] != previous_espeed_digit[0])
-  {
-    ILI9341_Draw_Char(hspi, previous_espeed_digit[0], ESPEED_X + 3 * ESPEED_FONT.width, ESPEED_Y, &ESPEED_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, espeed_digit[0], ESPEED_X + 3 * ESPEED_FONT.width, ESPEED_Y, &ESPEED_FONT, COLOR_WHITE);
-    previous_espeed_digit[0] = espeed_digit[0];
-  }
-
-  if (espeed_digit[1] != previous_espeed_digit[1])
-  {
-    ILI9341_Draw_Char(hspi, previous_espeed_digit[1], ESPEED_X + 2 * ESPEED_FONT.width, ESPEED_Y, &ESPEED_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, espeed_digit[1], ESPEED_X + 2 * ESPEED_FONT.width, ESPEED_Y, &ESPEED_FONT, COLOR_WHITE);
-    previous_espeed_digit[1] = espeed_digit[1];
-  }
-
-  if (espeed_digit[2] != previous_espeed_digit[2])
-  {
-    ILI9341_Draw_Char(hspi, previous_espeed_digit[2], ESPEED_X + ESPEED_FONT.width, ESPEED_Y, &ESPEED_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, espeed_digit[2], ESPEED_X + ESPEED_FONT.width, ESPEED_Y, &ESPEED_FONT, COLOR_WHITE);
-    previous_espeed_digit[2] = espeed_digit[2];
-  }
-
-  if (espeed_digit[3] != previous_espeed_digit[3])
-  {
-    ILI9341_Draw_Char(hspi, previous_espeed_digit[3], ESPEED_X, ESPEED_Y, &ESPEED_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, espeed_digit[3], ESPEED_X, ESPEED_Y, &ESPEED_FONT, COLOR_WHITE);
-    previous_espeed_digit[3] = espeed_digit[3];
-  }
-}
-
 void ILI9341_Draw_Water_Temp(SPI_HandleTypeDef *hspi, int16_t temp)
 {
   char temp_string[7];
@@ -449,54 +375,6 @@ void ILI9341_Draw_Intake_Temp(SPI_HandleTypeDef *hspi, int16_t itemp)
     ILI9341_Draw_Char(hspi, previous_itemp_digit[2], ITEMP_X, ITEMP_Y, &ITEMP_FONT, COLOR_BLACK);
     ILI9341_Draw_Char(hspi, itemp_digit[2], ITEMP_X, ITEMP_Y, &ITEMP_FONT, COLOR_WHITE);
     previous_itemp_digit[2] = itemp_digit[2];
-  }
-}
-
-void ILI9341_Draw_MAF(SPI_HandleTypeDef *hspi, uint16_t MAF)
-{
-  char MAF_string[6];
-  char MAF_digit[3];
-
-  sprintf(MAF_string, "%d", MAF);
-
-  if (MAF < 10)
-  {
-    MAF_digit[0] = MAF_string[0];
-    MAF_digit[1] = ' ';
-    MAF_digit[2] = ' ';
-  }
-  else if (MAF < 100)
-  {
-    MAF_digit[0] = MAF_string[1];
-    MAF_digit[1] = MAF_string[0];
-    MAF_digit[2] = ' ';
-  }
-  else
-  {
-    MAF_digit[0] = MAF_string[2];
-    MAF_digit[1] = MAF_string[1];
-    MAF_digit[2] = MAF_string[0];
-  }
-
-  if (MAF_digit[0] != previous_MAF_digit[0])
-  {
-    ILI9341_Draw_Char(hspi, previous_MAF_digit[0], MAF_X + 2 * MAF_FONT.width, MAF_Y, &MAF_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, MAF_digit[0], MAF_X + 2 * MAF_FONT.width, MAF_Y, &MAF_FONT, COLOR_WHITE);
-    previous_MAF_digit[0] = MAF_digit[0];
-  }
-
-  if (MAF_digit[1] != previous_MAF_digit[1])
-  {
-    ILI9341_Draw_Char(hspi, previous_MAF_digit[1], MAF_X + MAF_FONT.width, MAF_Y, &MAF_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, MAF_digit[1], MAF_X + MAF_FONT.width, MAF_Y, &MAF_FONT, COLOR_WHITE);
-    previous_MAF_digit[1] = MAF_digit[1];
-  }
-
-  if (MAF_digit[2] != previous_MAF_digit[2])
-  {
-    ILI9341_Draw_Char(hspi, previous_MAF_digit[2], MAF_X, MAF_Y, &MAF_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, MAF_digit[2], MAF_X, MAF_Y, &MAF_FONT, COLOR_WHITE);
-    previous_MAF_digit[2] = MAF_digit[2];
   }
 }
 
