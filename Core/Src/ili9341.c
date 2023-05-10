@@ -16,6 +16,14 @@ void ILI9341_Draw_3_Digit_Int(SPI_HandleTypeDef *hspi, int value, uint16_t x, ui
 void ILI9341_Draw_Line(SPI_HandleTypeDef *hspi, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color);
 void ILI9341_Draw_Line_With_Data_Color(SPI_HandleTypeDef *hspi, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t offset_x, uint16_t offset_y, uint16_t size_x, uint16_t *color_index, uint8_t *data);
 
+static inline uint32_t Fetch_Bit(const uint8_t *p, uint32_t index);
+static uint32_t Fetch_Bits_Unsigned(const uint8_t *p, uint32_t index, uint32_t required);
+static uint32_t Fetch_Bits_Signed(const uint8_t *p, uint32_t index, uint32_t required);
+void New_Draw_Char(SPI_HandleTypeDef *hspi, char c, const ILI9341_t3_font_t *font, uint16_t color);
+void New_Draw_String(SPI_HandleTypeDef *hspi, char *str, const ILI9341_t3_font_t *font, uint16_t color);
+void Draw_Font_Bits(SPI_HandleTypeDef *hspi, uint32_t bits, uint16_t num_bits, uint16_t x, uint16_t y, uint8_t repeat, uint16_t color);
+uint16_t Get_Char_Width(char c, const ILI9341_t3_font_t *font);
+
 /* Private user code ---------------------------------------------------------*/
 char previous_speed_digit[3]  = {' ', ' ', ' '};
 char previous_temp_digit[3]   = {' ', ' ', ' '};
@@ -29,6 +37,9 @@ uint16_t previous_y1 = 74;
 
 uint32_t gauge_pointer_pixel[512] = {0};
 uint32_t previous_gauge_pointer_pixel[512] = {0};
+
+int16_t cursor_x = 0;
+int16_t cursor_y = 0;
 
 void ILI9341_Configure(SPI_HandleTypeDef *hspi)
 {
@@ -75,24 +86,39 @@ void ILI9341_Configure(SPI_HandleTypeDef *hspi)
   ILI9341_Fill_Screen(hspi, COLOR_BLACK);
 
   // Draw vehicle speed unit
-  ILI9341_Draw_String(hspi, "km/h", SPEED_UNIT_X, SPEED_UNIT_Y, &SPEED_UNIT_FONT, COLOR_WHITE);
+  cursor_x = SPEED_UNIT_X;
+  cursor_y = SPEED_UNIT_Y;
+  New_Draw_String(hspi, "km/h", &SPEED_UNIT_FONT, COLOR_WHITE);
 
   // Draw water temp unit
   ILI9341_Draw_Char(hspi, ' ', TEMP_LOGO_X, TEMP_LOGO_Y, &TEMP_LOGO_FONT, COLOR_WHITE);
   ILI9341_Draw_Char(hspi, ' ', TEMP_UNIT_X, TEMP_UNIT_Y, &Degree_7x10, COLOR_WHITE);
-  ILI9341_Draw_Char(hspi, 'C', TEMP_UNIT_X + 5, TEMP_UNIT_Y, &TEMP_UNIT_FONT, COLOR_WHITE);
+  cursor_x = TEMP_UNIT_X + 5;
+  cursor_y = TEMP_UNIT_Y;
+  New_Draw_Char(hspi, 'C', &TEMP_UNIT_FONT, COLOR_WHITE);
 
   // Draw intake temp unit
-  ILI9341_Draw_String(hspi, "IAT:", ITEMP_LOGO_X, ITEMP_LOGO_Y, &ITEMP_LOGO_FONT, COLOR_WHITE);
+  cursor_x = ITEMP_LOGO_X;
+  cursor_y = ITEMP_LOGO_Y;
+  New_Draw_String(hspi, "IAT:", &ITEMP_LOGO_FONT, COLOR_WHITE);
   ILI9341_Draw_Char(hspi, ' ', ITEMP_UNIT_X, ITEMP_UNIT_Y, &Degree_7x10, COLOR_WHITE);
-  ILI9341_Draw_Char(hspi, 'C', ITEMP_UNIT_X + 5, ITEMP_UNIT_Y, &ITEMP_UNIT_FONT, COLOR_WHITE);
+  cursor_x = ITEMP_UNIT_X + 5;
+  cursor_y = ITEMP_UNIT_Y;
+  New_Draw_Char(hspi, 'C', &ITEMP_UNIT_FONT, COLOR_WHITE);
 
   // Draw boost gauge
   ILI9341_Draw_Boost_Gauge(hspi, GAUGE_X, GAUGE_Y, GAUGE_WIDTH, GAUGE_HEIGHT, (uint16_t *) opc_boost_gauge_148x148_color_index, (uint8_t *)opc_boost_gauge_148x148_data);
   ILI9341_Draw_Boost_Gauge_Pointer(hspi, GAUGE_X, GAUGE_Y, GAUGE_WIDTH, GAUGE_HEIGHT, (uint16_t *) opc_boost_gauge_148x148_color_index, (uint8_t *)opc_boost_gauge_148x148_data, 0);
 
   // Draw boost unit
-  ILI9341_Draw_String(hspi, "bar", BOOST_UNIT_X, BOOST_UNIT_Y, &BOOST_UNIT_FONT, COLOR_WHITE);
+  cursor_x = BOOST_UNIT_X;
+  cursor_y = BOOST_UNIT_Y;
+  New_Draw_String(hspi, "bar", &BOOST_UNIT_FONT, COLOR_WHITE);
+
+  // Draw boost value dot
+  cursor_x = BOOST_X + 2 * BOOST_FONT_WIDTH;
+  cursor_y = BOOST_Y;
+  New_Draw_Char(hspi, '.', &BOOST_FONT, COLOR_WHITE);
 }
 
 void ILI9341_Fill_Screen(SPI_HandleTypeDef *hspi, uint16_t color)
@@ -106,6 +132,26 @@ void ILI9341_Fill_Screen(SPI_HandleTypeDef *hspi, uint16_t color)
   HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_RESET);
 
   for (int i = 0; i < 76800; i++)
+  {
+    HAL_SPI_Transmit(hspi, data, 2, HAL_MAX_DELAY);
+  }
+
+  HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_SET);
+}
+
+void ILI9341_Fill_Rectangle(SPI_HandleTypeDef *hspi, uint16_t x, uint16_t y, uint16_t size_x, uint16_t size_y, uint16_t color)
+{
+  uint8_t data[2] = {color >> 8, color & 0xFF};
+
+  ILI9341_Set_Cursor_Position(hspi, x, y, x + size_x - 1, y + size_y - 1);
+  ILI9341_Send_Command(hspi, ILI9341_MEM_WRITE);
+
+  HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_RESET);
+
+  const uint32_t size = size_x * size_y;
+
+  for (int i = 0; i < size; i++)
   {
     HAL_SPI_Transmit(hspi, data, 2, HAL_MAX_DELAY);
   }
@@ -212,168 +258,140 @@ void ILI9341_Draw_String(SPI_HandleTypeDef *hspi, char *str, uint16_t x, uint16_
 
 void ILI9341_Draw_Vehicle_Speed(SPI_HandleTypeDef *hspi, uint8_t speed)
 {
-  char speed_string[4];
-  char speed_digit[3];
+  char speed_digit[4];
 
-  sprintf(speed_string, "%d", speed);
-
-  if (speed < 10)
-  {
-    speed_digit[0] = speed_string[0];
-    speed_digit[1] = ' ';
-    speed_digit[2] = ' ';
-  }
-  else if (speed < 100)
-  {
-    speed_digit[0] = speed_string[1];
-    speed_digit[1] = speed_string[0];
-    speed_digit[2] = ' ';
-  }
-  else
-  {
-    speed_digit[0] = speed_string[2];
-    speed_digit[1] = speed_string[1];
-    speed_digit[2] = speed_string[0];
-  }
+  sprintf(speed_digit, "%3d", speed);
 
   if (speed_digit[0] != previous_speed_digit[0])
   {
-    ILI9341_Draw_Char(hspi, previous_speed_digit[0], SPEED_X + 2 * SPEED_FONT.width, SPEED_Y, &SPEED_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, speed_digit[0], SPEED_X + 2 * SPEED_FONT.width, SPEED_Y, &SPEED_FONT, COLOR_WHITE);
+    cursor_x = SPEED_X;
+    cursor_y = SPEED_Y;
+    New_Draw_Char(hspi, previous_speed_digit[0], &SPEED_FONT, COLOR_BLACK);
+
+    cursor_x = SPEED_X;
+    cursor_y = SPEED_Y;
+    New_Draw_Char(hspi, speed_digit[0], &SPEED_FONT, COLOR_WHITE);
+
     previous_speed_digit[0] = speed_digit[0];
   }
 
   if (speed_digit[1] != previous_speed_digit[1])
   {
-    ILI9341_Draw_Char(hspi, previous_speed_digit[1], SPEED_X + SPEED_FONT.width, SPEED_Y, &SPEED_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, speed_digit[1], SPEED_X + SPEED_FONT.width, SPEED_Y, &SPEED_FONT, COLOR_WHITE);
+    cursor_x = SPEED_X + SPEED_FONT_WIDTH;
+    cursor_y = SPEED_Y;
+    New_Draw_Char(hspi, previous_speed_digit[1], &SPEED_FONT, COLOR_BLACK);
+
+    cursor_x = SPEED_X + SPEED_FONT_WIDTH;
+    cursor_y = SPEED_Y;
+    New_Draw_Char(hspi, speed_digit[1], &SPEED_FONT, COLOR_WHITE);
+
     previous_speed_digit[1] = speed_digit[1];
   }
 
   if (speed_digit[2] != previous_speed_digit[2])
   {
-    ILI9341_Draw_Char(hspi, previous_speed_digit[2], SPEED_X, SPEED_Y, &SPEED_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, speed_digit[2], SPEED_X, SPEED_Y, &SPEED_FONT, COLOR_WHITE);
+    cursor_x = SPEED_X + (2 * SPEED_FONT_WIDTH);
+    cursor_y = SPEED_Y;
+    New_Draw_Char(hspi, previous_speed_digit[2], &SPEED_FONT, COLOR_BLACK);
+
+    cursor_x = SPEED_X + (2 * SPEED_FONT_WIDTH);
+    cursor_y = SPEED_Y;
+    New_Draw_Char(hspi, speed_digit[2], &SPEED_FONT, COLOR_WHITE);
+
     previous_speed_digit[2] = speed_digit[2];
   }
 }
 
 void ILI9341_Draw_Water_Temp(SPI_HandleTypeDef *hspi, int16_t temp)
 {
-  char temp_string[7];
-  char temp_digit[3];
+  char temp_digit[7];
 
-  sprintf(temp_string, "%d", temp);
-
-  if (temp < -9)
-  {
-    temp_digit[0] = temp_string[2];
-    temp_digit[1] = temp_string[1];
-    temp_digit[2] = temp_string[0];
-  }
-  else if (temp < 0)
-  {
-    temp_digit[0] = temp_string[1];
-    temp_digit[1] = temp_string[0];
-    temp_digit[2] = ' ';
-  }
-  else if (temp < 10)
-  {
-    temp_digit[0] = temp_string[0];
-    temp_digit[1] = ' ';
-    temp_digit[2] = ' ';
-  }
-  else if (temp < 100)
-  {
-    temp_digit[0] = temp_string[1];
-    temp_digit[1] = temp_string[0];
-    temp_digit[2] = ' ';
-  }
-  else
-  {
-    temp_digit[0] = temp_string[2];
-    temp_digit[1] = temp_string[1];
-    temp_digit[2] = temp_string[0];
-  }
+  sprintf(temp_digit, "%3d", temp);
 
   if (temp_digit[0] != previous_temp_digit[0])
   {
-    ILI9341_Draw_Char(hspi, previous_temp_digit[0], TEMP_X + 2 * TEMP_FONT.width, TEMP_Y, &TEMP_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, temp_digit[0], TEMP_X + 2 * TEMP_FONT.width, TEMP_Y, &TEMP_FONT, COLOR_WHITE);
+    cursor_x = TEMP_X;
+    cursor_y = TEMP_Y;
+    New_Draw_Char(hspi, previous_temp_digit[0], &TEMP_FONT, COLOR_BLACK);
+
+    cursor_x = TEMP_X;
+    cursor_y = TEMP_Y;
+    New_Draw_Char(hspi, temp_digit[0], &TEMP_FONT, COLOR_WHITE);
+
     previous_temp_digit[0] = temp_digit[0];
   }
 
   if (temp_digit[1] != previous_temp_digit[1])
   {
-    ILI9341_Draw_Char(hspi, previous_temp_digit[1], TEMP_X + TEMP_FONT.width, TEMP_Y, &TEMP_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, temp_digit[1], TEMP_X + TEMP_FONT.width, TEMP_Y, &TEMP_FONT, COLOR_WHITE);
+    cursor_x = TEMP_X + TEMP_FONT_WIDTH;
+    cursor_y = TEMP_Y;
+    New_Draw_Char(hspi, previous_temp_digit[1], &TEMP_FONT, COLOR_BLACK);
+
+    cursor_x = TEMP_X + TEMP_FONT_WIDTH;
+    cursor_y = TEMP_Y;
+    New_Draw_Char(hspi, temp_digit[1], &TEMP_FONT, COLOR_WHITE);
+
     previous_temp_digit[1] = temp_digit[1];
   }
 
   if (temp_digit[2] != previous_temp_digit[2])
   {
-    ILI9341_Draw_Char(hspi, previous_temp_digit[2], TEMP_X, TEMP_Y, &TEMP_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, temp_digit[2], TEMP_X, TEMP_Y, &TEMP_FONT, COLOR_WHITE);
+    cursor_x = TEMP_X;
+    cursor_x = TEMP_X + (2 * TEMP_FONT_WIDTH);
+    cursor_y = TEMP_Y;
+    New_Draw_Char(hspi, previous_temp_digit[2], &TEMP_FONT, COLOR_BLACK);
+
+    cursor_x = TEMP_X + (2 * TEMP_FONT_WIDTH);
+    cursor_y = TEMP_Y;
+    New_Draw_Char(hspi, temp_digit[2], &TEMP_FONT, COLOR_WHITE);
+
     previous_temp_digit[2] = temp_digit[2];
   }
 }
 
 void ILI9341_Draw_Intake_Temp(SPI_HandleTypeDef *hspi, int16_t itemp)
 {
-  char itemp_string[7];
-  char itemp_digit[3];
+  char itemp_digit[7];
 
-  sprintf(itemp_string, "%d", itemp);
-
-  if (itemp < -9)
-  {
-    itemp_digit[0] = itemp_string[2];
-    itemp_digit[1] = itemp_string[1];
-    itemp_digit[2] = itemp_string[0];
-  }
-  else if (itemp < 0)
-  {
-    itemp_digit[0] = itemp_string[1];
-    itemp_digit[1] = itemp_string[0];
-    itemp_digit[2] = ' ';
-  }
-  else if (itemp < 10)
-  {
-    itemp_digit[0] = itemp_string[0];
-    itemp_digit[1] = ' ';
-    itemp_digit[2] = ' ';
-  }
-  else if (itemp < 100)
-  {
-    itemp_digit[0] = itemp_string[1];
-    itemp_digit[1] = itemp_string[0];
-    itemp_digit[2] = ' ';
-  }
-  else
-  {
-    itemp_digit[0] = itemp_string[2];
-    itemp_digit[1] = itemp_string[1];
-    itemp_digit[2] = itemp_string[0];
-  }
+  sprintf(itemp_digit, "%3d", itemp);
 
   if (itemp_digit[0] != previous_itemp_digit[0])
   {
-    ILI9341_Draw_Char(hspi, previous_itemp_digit[0], ITEMP_X + 2 * ITEMP_FONT.width, ITEMP_Y, &ITEMP_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, itemp_digit[0], ITEMP_X + 2 * ITEMP_FONT.width, ITEMP_Y, &ITEMP_FONT, COLOR_WHITE);
+    cursor_x = ITEMP_X;
+    cursor_y = ITEMP_Y;
+    New_Draw_Char(hspi, previous_itemp_digit[0], &ITEMP_FONT, COLOR_BLACK);
+
+    cursor_x = ITEMP_X;
+    cursor_y = ITEMP_Y;
+    New_Draw_Char(hspi, itemp_digit[0], &ITEMP_FONT, COLOR_WHITE);
+
     previous_itemp_digit[0] = itemp_digit[0];
   }
 
   if (itemp_digit[1] != previous_itemp_digit[1])
   {
-    ILI9341_Draw_Char(hspi, previous_itemp_digit[1], ITEMP_X + ITEMP_FONT.width, ITEMP_Y, &ITEMP_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, itemp_digit[1], ITEMP_X + ITEMP_FONT.width, ITEMP_Y, &ITEMP_FONT, COLOR_WHITE);
+    cursor_x = ITEMP_X + ITEMP_FONT_WIDTH;
+    cursor_y = ITEMP_Y;
+    New_Draw_Char(hspi, previous_itemp_digit[1], &ITEMP_FONT, COLOR_BLACK);
+
+    cursor_x = ITEMP_X + ITEMP_FONT_WIDTH;
+    cursor_y = ITEMP_Y;
+    New_Draw_Char(hspi, itemp_digit[1], &ITEMP_FONT, COLOR_WHITE);
+
     previous_itemp_digit[1] = itemp_digit[1];
   }
 
   if (itemp_digit[2] != previous_itemp_digit[2])
   {
-    ILI9341_Draw_Char(hspi, previous_itemp_digit[2], ITEMP_X, ITEMP_Y, &ITEMP_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, itemp_digit[2], ITEMP_X, ITEMP_Y, &ITEMP_FONT, COLOR_WHITE);
+    cursor_x = ITEMP_X;
+    cursor_x = ITEMP_X + (2 * ITEMP_FONT_WIDTH);
+    cursor_y = ITEMP_Y;
+    New_Draw_Char(hspi, previous_itemp_digit[2], &ITEMP_FONT, COLOR_BLACK);
+
+    cursor_x = ITEMP_X + (2 * ITEMP_FONT_WIDTH);
+    cursor_y = ITEMP_Y;
+    New_Draw_Char(hspi, itemp_digit[2], &ITEMP_FONT, COLOR_WHITE);
+
     previous_itemp_digit[2] = itemp_digit[2];
   }
 }
@@ -394,7 +412,6 @@ void ILI9341_Draw_Boost(SPI_HandleTypeDef *hspi, int16_t boost)
   {
     boost_digit[0] = boost_string[3];
     boost_digit[1] = boost_string[2];
-    boost_digit[2] = '.';
     boost_digit[3] = boost_string[1];
     boost_digit[4] = boost_string[0];
   }
@@ -402,7 +419,6 @@ void ILI9341_Draw_Boost(SPI_HandleTypeDef *hspi, int16_t boost)
   {
     boost_digit[0] = boost_string[2];
     boost_digit[1] = boost_string[1];
-    boost_digit[2] = '.';
     boost_digit[3] = '0';
     boost_digit[4] = boost_string[0];
   }
@@ -410,7 +426,6 @@ void ILI9341_Draw_Boost(SPI_HandleTypeDef *hspi, int16_t boost)
   {
     boost_digit[0] = boost_string[1];
     boost_digit[1] = '0';
-    boost_digit[2] = '.';
     boost_digit[3] = '0';
     boost_digit[4] = boost_string[0];
   }
@@ -418,7 +433,6 @@ void ILI9341_Draw_Boost(SPI_HandleTypeDef *hspi, int16_t boost)
   {
     boost_digit[0] = boost_string[0];
     boost_digit[1] = '0';
-    boost_digit[2] = '.';
     boost_digit[3] = '0';
     boost_digit[4] = ' ';
   }
@@ -426,7 +440,6 @@ void ILI9341_Draw_Boost(SPI_HandleTypeDef *hspi, int16_t boost)
   {
     boost_digit[0] = boost_string[1];
     boost_digit[1] = boost_string[0];
-    boost_digit[2] = '.';
     boost_digit[3] = '0';
     boost_digit[4] = ' ';
   }
@@ -434,43 +447,59 @@ void ILI9341_Draw_Boost(SPI_HandleTypeDef *hspi, int16_t boost)
   {
     boost_digit[0] = boost_string[2];
     boost_digit[1] = boost_string[1];
-    boost_digit[2] = '.';
     boost_digit[3] = boost_string[0];
     boost_digit[4] = ' ';
   }
 
   if (boost_digit[0] != previous_boost_digit[0])
   {
-    ILI9341_Draw_Char(hspi, previous_boost_digit[0], BOOST_X + 4 * BOOST_FONT.width, BOOST_Y, &BOOST_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, boost_digit[0], BOOST_X + 4 * BOOST_FONT.width, BOOST_Y, &BOOST_FONT, COLOR_WHITE);
+    cursor_x = BOOST_X + + BOOST_FONT_DOT_WIDTH + 3 * BOOST_FONT_WIDTH;
+    cursor_y = BOOST_Y;
+    New_Draw_Char(hspi, previous_boost_digit[0], &BOOST_FONT, COLOR_BLACK);
+
+    cursor_x = BOOST_X + + BOOST_FONT_DOT_WIDTH + 3 * BOOST_FONT_WIDTH;
+    cursor_y = BOOST_Y;
+    New_Draw_Char(hspi, boost_digit[0], &BOOST_FONT, COLOR_WHITE);
+
     previous_boost_digit[0] = boost_digit[0];
   }
 
   if (boost_digit[1] != previous_boost_digit[1])
   {
-    ILI9341_Draw_Char(hspi, previous_boost_digit[1], BOOST_X + 3 * BOOST_FONT.width, BOOST_Y, &BOOST_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, boost_digit[1], BOOST_X + 3 * BOOST_FONT.width, BOOST_Y, &BOOST_FONT, COLOR_WHITE);
-    previous_boost_digit[1] = boost_digit[1];
-  }
+    cursor_x = BOOST_X + BOOST_FONT_DOT_WIDTH + 2 * BOOST_FONT_WIDTH;
+    cursor_y = BOOST_Y;
+    New_Draw_Char(hspi, previous_boost_digit[1], &BOOST_FONT, COLOR_BLACK);
 
-  if (boost_digit[2] != previous_boost_digit[2])
-  {
-    ILI9341_Draw_Char(hspi, previous_boost_digit[2], BOOST_X + 2 * BOOST_FONT.width, BOOST_Y, &BOOST_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, boost_digit[2], BOOST_X + 2 * BOOST_FONT.width, BOOST_Y, &BOOST_FONT, COLOR_WHITE);
-    previous_boost_digit[2] = boost_digit[2];
+    cursor_x = BOOST_X + BOOST_FONT_DOT_WIDTH + 2 * BOOST_FONT_WIDTH;
+    cursor_y = BOOST_Y;
+    New_Draw_Char(hspi, boost_digit[1], &BOOST_FONT, COLOR_WHITE);
+
+    previous_boost_digit[1] = boost_digit[1];
   }
 
   if (boost_digit[3] != previous_boost_digit[3])
   {
-    ILI9341_Draw_Char(hspi, previous_boost_digit[3], BOOST_X + BOOST_FONT.width, BOOST_Y, &BOOST_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, boost_digit[3], BOOST_X + BOOST_FONT.width, BOOST_Y, &BOOST_FONT, COLOR_WHITE);
+    cursor_x = BOOST_X + BOOST_FONT_WIDTH;
+    cursor_y = BOOST_Y;
+    New_Draw_Char(hspi, previous_boost_digit[3], &BOOST_FONT, COLOR_BLACK);
+
+    cursor_x = BOOST_X + BOOST_FONT_WIDTH;
+    cursor_y = BOOST_Y;
+    New_Draw_Char(hspi, boost_digit[3], &BOOST_FONT, COLOR_WHITE);
+
     previous_boost_digit[3] = boost_digit[3];
   }
 
   if (boost_digit[4] != previous_boost_digit[4])
   {
-    ILI9341_Draw_Char(hspi, previous_boost_digit[4], BOOST_X, BOOST_Y, &BOOST_FONT, COLOR_BLACK);
-    ILI9341_Draw_Char(hspi, boost_digit[4], BOOST_X, BOOST_Y, &BOOST_FONT, COLOR_WHITE);
+    cursor_x = BOOST_X;
+    cursor_y = BOOST_Y;
+    New_Draw_Char(hspi, previous_boost_digit[4], &BOOST_FONT, COLOR_BLACK);
+
+    cursor_x = BOOST_X;
+    cursor_y = BOOST_Y;
+    New_Draw_Char(hspi, boost_digit[4], &BOOST_FONT, COLOR_WHITE);
+
     previous_boost_digit[4] = boost_digit[4];
   }
 }
@@ -741,4 +770,251 @@ void ILI9341_Draw_Line_With_Data_Color(SPI_HandleTypeDef *hspi, uint16_t x0, uin
       y0 += sy;
     }
   }
+}
+
+static inline uint32_t Fetch_Bit(const uint8_t *p, uint32_t index)
+{
+  return (p[index >> 3] & (0x80 >> (index & 7)));
+}
+
+static uint32_t Fetch_Bits_Unsigned(const uint8_t *p, uint32_t index, uint32_t required)
+{
+  uint32_t val;
+  uint8_t *s = (uint8_t *)&p[index>>3];
+
+  val = s[0] << 24;
+  val |= (s[1] << 16);
+  val |= (s[2] << 8);
+  val |= s[3];
+  val <<= (index & 7); // shift out used bits
+
+  if (32 - (index & 7) < required)
+  {
+    // need to get more bits
+    val |= (s[4] >> (8 - (index & 7)));
+  }
+
+  val >>= (32 - required); // right align the bits
+  return val;
+}
+
+static uint32_t Fetch_Bits_Signed(const uint8_t *p, uint32_t index, uint32_t required)
+{
+  uint32_t val = Fetch_Bits_Unsigned(p, index, required);
+
+  if (val & (1 << (required - 1)))
+  {
+    return (int32_t)val - (1 << required);
+  }
+
+  return (int32_t)val;
+}
+
+void New_Draw_Char(SPI_HandleTypeDef *hspi, char c, const ILI9341_t3_font_t *font, uint16_t color)
+{
+  uint32_t bit_offset;
+  const uint8_t *data;
+
+  if (c >= font->index1_first && c <= font->index1_last)
+  {
+    bit_offset = c - font->index1_first;
+    bit_offset *= font->bits_index;
+  }
+  else if (c >= font->index2_first && c <= font->index2_last)
+  {
+    bit_offset = c - font->index2_first + font->index1_last - font->index1_first + 1;
+    bit_offset *= font->bits_index;
+  }
+  else
+  {
+    return;
+  }
+
+  data = font->data + Fetch_Bits_Unsigned(font->index, bit_offset, font->bits_index);
+  bit_offset = 0;
+
+  uint8_t encoding = Fetch_Bits_Unsigned(data, bit_offset, 3);
+  bit_offset += 3;
+
+  if (encoding != 0)
+  {
+    return;
+  }
+
+  uint16_t width = Fetch_Bits_Unsigned(data, bit_offset, font->bits_width);
+  bit_offset += font->bits_width;
+
+  uint16_t height = Fetch_Bits_Unsigned(data, bit_offset, font->bits_height);
+  bit_offset += font->bits_height;
+
+  int16_t xoffset = Fetch_Bits_Signed(data, bit_offset, font->bits_xoffset);
+  bit_offset += font->bits_xoffset;
+
+  int16_t yoffset = Fetch_Bits_Signed(data, bit_offset, font->bits_yoffset);
+  bit_offset += font->bits_yoffset;
+
+  uint16_t delta = Fetch_Bits_Unsigned(data, bit_offset, font->bits_delta);
+  bit_offset += font->bits_delta;
+
+  int16_t origin_x = cursor_x + xoffset;
+
+  cursor_x += delta;
+
+  int16_t origin_y = cursor_y + font->cap_height - height - yoffset;
+
+  uint16_t line_count = height;
+
+  uint16_t y = origin_y;
+
+  while (line_count)
+  {
+    uint8_t b = Fetch_Bit(data, bit_offset++);
+
+    if (b == 0)
+    {
+      // Do not repeat the line
+      uint16_t x = 0;
+
+      do
+      {
+        uint16_t x_size = width - x;
+
+        if (x_size > 32)
+        {
+          x_size = 32;
+        }
+
+        uint32_t bits = Fetch_Bits_Unsigned(data, bit_offset, x_size);
+        bit_offset += x_size;
+
+        Draw_Font_Bits(hspi, bits, x_size, origin_x + x, y, 1, color);
+
+        x += x_size;
+      } while (x < width);
+
+      y++;
+      line_count--;
+    }
+    else
+    {
+      // Repeat the line n times
+      uint8_t n = Fetch_Bits_Unsigned(data, bit_offset, 3) + 2;
+      bit_offset += 3;
+
+      uint16_t x = 0;
+
+      do
+      {
+        uint16_t x_size = width - x;
+
+        if (x_size > 32)
+        {
+          x_size = 32;
+        }
+
+        uint32_t bits = Fetch_Bits_Unsigned(data, bit_offset, x_size);
+        bit_offset += x_size;
+
+        Draw_Font_Bits(hspi, bits, x_size, origin_x + x, y, n, color);
+
+        x += x_size;
+      } while (x < width);
+
+      y += n;
+      line_count -= n;
+    }
+  }
+}
+
+void New_Draw_String(SPI_HandleTypeDef *hspi, char *str, const ILI9341_t3_font_t *font, uint16_t color)
+{
+  while (*str)
+  {
+    New_Draw_Char(hspi, *str++, font, color);
+  }
+}
+
+void Draw_Font_Bits(SPI_HandleTypeDef *hspi, uint32_t bits, uint16_t num_bits, uint16_t x, uint16_t y, uint8_t repeat, uint16_t color)
+{
+  if (bits == 0)
+  {
+    return;
+  }
+
+  // left align bits
+  bits <<= (32 - num_bits);
+
+  uint16_t w;
+
+  do
+  {
+    // skip over zeros
+    w = __builtin_clz(bits);
+
+    if (w > num_bits)
+    {
+      w = num_bits;
+    }
+
+    num_bits -= w;
+    x += w;
+    bits <<= w;
+
+    // invert to count 1s as 0s
+    bits = ~bits;
+    w = __builtin_clz(bits);
+
+    if (w > num_bits)
+    {
+      w = num_bits;
+    }
+
+    num_bits -= w;
+    bits <<= w;
+
+    // invert back to original polarity
+    bits = ~bits;
+
+    if (w > 0)
+    {
+      x += w;
+
+      ILI9341_Fill_Rectangle(hspi, x - w, y, w, repeat, color);
+    }
+  } while (num_bits > 0);
+}
+
+uint16_t Get_Char_Width(char c, const ILI9341_t3_font_t *font)
+{
+  uint32_t bit_offset;
+  const uint8_t *data;
+
+  if (c >= font->index1_first && c <= font->index1_last)
+  {
+    bit_offset = c - font->index1_first;
+    bit_offset *= font->bits_index;
+  }
+  else if (c >= font->index2_first && c <= font->index2_last)
+  {
+    bit_offset = c - font->index2_first + font->index1_last - font->index1_first + 1;
+    bit_offset *= font->bits_index;
+  }
+  else
+  {
+    return 0;
+  }
+
+  data = font->data + Fetch_Bits_Unsigned(font->index, bit_offset, font->bits_index);
+  bit_offset = 0;
+
+  uint8_t encoding = Fetch_Bits_Unsigned(data, bit_offset, 3);
+
+  if (encoding != 0)
+  {
+    return 0;
+  }
+
+  bit_offset += 3 + font->bits_width + font->bits_height + font->bits_xoffset + font->bits_yoffset;
+
+  return Fetch_Bits_Unsigned(data, bit_offset, font->bits_delta);
 }
