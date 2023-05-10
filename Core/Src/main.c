@@ -173,6 +173,8 @@ int main(void)
   /* Variables ************************************************************************************/
   int16_t boost                   = 0;
   int16_t filtered_boost          = 0;
+  float previous_engine_speed     = 0.0;
+  float previous_MAF              = 0.0;
   uint8_t previous_vehicle_speed  = 255;
   int16_t previous_water_temp     = 32767;
   int16_t previous_intake_temp    = 32767;
@@ -197,15 +199,20 @@ int main(void)
     // - Ideal gas constant (R in J/k*mol) = 8.314
     //
     // P = ((MAF * 60) / (RPM / 2 * C * M * 10^-6)) * R * (IAT + 273.15) * 10^-5
-    //boost = (MAF * 60.0) / (engine_speed / 2 * 1998.0 * 28.9645 * 0.000001) * 8.314 * ((float)(intake_temp) + 273.15) * 0.00001 * 100.0;
-    if (engine_speed > 0.0)
+    if (previous_engine_speed != engine_speed || previous_MAF != MAF)
     {
-      boost = (int16_t)(MAF / engine_speed * ((float)(intake_temp) + 273.15) * 17.2397022247) - 100;
-      filtered_boost = filtered_boost + 0.3 * (boost - filtered_boost);
-    }
-    else
-    {
-      filtered_boost = 0;
+      if (engine_speed > 0.0)
+      {
+        boost = (int16_t)(MAF / engine_speed * ((float)(intake_temp) + 273.15) * 17.2397022247) - 100;
+        filtered_boost = filtered_boost + 0.8 * (boost - filtered_boost);
+      }
+      else
+      {
+        filtered_boost = 0;
+      }
+
+      previous_engine_speed = engine_speed;
+      previous_MAF = MAF;
     }
 
     if (vehicle_speed != previous_vehicle_speed)
