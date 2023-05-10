@@ -232,17 +232,23 @@ void TIM2_IRQHandler(void)
   static uint32_t Mailbox;
   static uint8_t High_Freq_Message_Selector = 0;
   static uint8_t Low_Freq_Message_Selector = 0;
-  static uint8_t Low_Freq_Divider = 0;
+  static uint8_t Freq_Divider = 0;
 
   /* USER CODE END TIM2_IRQn 0 */
   HAL_TIM_IRQHandler(&htim2);
   /* USER CODE BEGIN TIM2_IRQn 1 */
 
-  Low_Freq_Divider++;
+  Freq_Divider++;
 
-  if (Low_Freq_Divider >= 20)
+  if ((Freq_Divider % 10) == 0)
   {
-    Low_Freq_Divider = 0;
+    // 1Hz
+    HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Vehicle_Speed_Payload, &Mailbox);
+  }
+  else if (Freq_Divider >= 30)
+  {
+    // 0.33Hz
+    Freq_Divider = 0;
 
     Low_Freq_Message_Selector++;
 
@@ -260,6 +266,7 @@ void TIM2_IRQHandler(void)
   }
   else
   {
+    // 10Hz
     High_Freq_Message_Selector++;
 
     switch (High_Freq_Message_Selector)
@@ -269,10 +276,6 @@ void TIM2_IRQHandler(void)
         break;
 
       case 2:
-        HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_Vehicle_Speed_Payload, &Mailbox);
-        break;
-
-      case 3:
         HAL_CAN_AddTxMessage(&hcan, &CAN_Header, CAN_MAF_Payload, &Mailbox);
         High_Freq_Message_Selector = 0;
         break;

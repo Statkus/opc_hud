@@ -161,7 +161,7 @@ int main(void)
     Error_Handler();
   }
 
-  /* Timer configuration for 20Hz interrupt *******************************************************/
+  /* Timer configuration for 10Hz interrupt *******************************************************/
   if (HAL_TIM_Base_Start_IT(&htim2) != HAL_OK)
   {
     Error_Handler();
